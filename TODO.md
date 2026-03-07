@@ -9,11 +9,11 @@ stage.
 
 Goal: confirm Telegram integration works.
 
--   [ ] Load environment variables from `.env`
--   [ ] Initialize `Bot` and `Dispatcher`
--   [ ] Implement `/start` command
--   [ ] Respond to any text message with a simple reply (e.g., "ok")
--   [ ] Run the bot locally and verify responses
+-   [x] Load environment variables from `.env`
+-   [x] Initialize `Bot` and `Dispatcher`
+-   [x] Implement `/start` command
+-   [x] Respond to any text message with a simple reply (e.g., "ok")
+-   [x] Run the bot locally and verify responses
 
 Result: the bot responds to `/start` and text messages.
 
@@ -23,11 +23,11 @@ Result: the bot responds to `/start` and text messages.
 
 Goal: verify that the bot receives the exact input your app needs.
 
--   [ ] Add handler for messages containing photos
--   [ ] Detect `message.photo`
--   [ ] Reply with "got photo"
--   [ ] If caption exists, include it in the reply
--   [ ] Log the caption to console
+-   [x] Add handler for messages containing photos
+-   [x] Detect `message.photo`
+-   [x] Reply with "got photo"
+-   [x] If caption exists, include it in the reply
+-   [x] Log the caption to console
 
 Result: bot correctly recognizes photo messages.
 

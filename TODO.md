@@ -81,8 +81,8 @@ Goal: persist meals and compute totals.
 
 In `db.py`:
 
--   [ ] Initialize SQLite database
--   [ ] Create `meals` table if not exists
+-   [x] Initialize SQLite database
+-   [x] Create `meals` table if not exists
 
 Table fields:
 
@@ -95,14 +95,14 @@ Table fields:
 
 Functions:
 
--   [ ] `add_meal(user_id, dish, calories, protein)`
--   [ ] `get_today_totals(user_id)`
+-   [x] `add_meal(user_id, dish, calories, protein)`
+-   [x] `get_today_totals(user_id)`
 
 In `bot.py`:
 
--   [ ] Save estimated meal
--   [ ] Retrieve today's totals
--   [ ] Include totals in reply
+-   [x] Save estimated meal
+-   [x] Retrieve today's totals
+-   [x] Include totals in reply
 
 Result: meals persist and daily totals work.
 

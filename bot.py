@@ -9,6 +9,7 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from vision import estimate_meal
+from db import add_meal, get_today_totals
 
 load_dotenv()
 
@@ -51,12 +52,22 @@ async def photo_handler(message: Message):
 
     result = estimate_meal(str(file_path), caption)
 
-    print("Estimation result:", result)
+    add_meal(
+        message.from_user.id,
+        result["dish"],
+        result["calories"],
+        result["protein"]
+    )
+
+    totals = get_today_totals(message.from_user.id)
 
     await message.answer(
         f"{result['dish']}\n"
         f"Calories: {result['calories']} kcal\n"
-        f"Protein: {result['protein']} g"
+        f"Protein: {result['protein']} g\n\n"
+        f"Today:\n"
+        f"Calories: {totals['calories']} kcal\n"
+        f"Protein: {totals['protein']} g"
     )
 
 async def main():

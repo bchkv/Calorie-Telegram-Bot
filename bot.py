@@ -8,6 +8,8 @@ from aiogram.types import Message
 
 from dotenv import load_dotenv
 
+from vision import estimate_meal
+
 load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -47,11 +49,15 @@ async def photo_handler(message: Message):
 
     print("Saved photo to:", file_path)
 
-    if caption:
-        await message.answer(f"photo saved\ncaption: {caption}")
-    else:
-        await message.answer("photo saved")
+    result = estimate_meal(str(file_path), caption)
 
+    print("Estimation result:", result)
+
+    await message.answer(
+        f"{result['dish']}\n"
+        f"Calories: {result['calories']} kcal\n"
+        f"Protein: {result['protein']} g"
+    )
 
 async def main():
     await dp.start_polling(bot)

@@ -54,8 +54,8 @@ Goal: connect bot logic with estimation logic.
 
 In `vision.py`:
 
--   [ ] Implement `estimate_meal(image_path, description)`
--   [ ] Return fake data for now:
+-   [x] Implement `estimate_meal(image_path, description)`
+-   [x] Return fake data for now:
 
 Example structure:
 
@@ -67,9 +67,9 @@ Example structure:
 
 In `bot.py`:
 
--   [ ] Call `estimate_meal()`
--   [ ] Format reply with calories and protein
--   [ ] Send reply to user
+-   [x] Call `estimate_meal()`
+-   [x] Format reply with calories and protein
+-   [x] Send reply to user
 
 Result: full pipeline exists even with fake AI.
 

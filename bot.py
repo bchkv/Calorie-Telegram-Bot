@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from vision import estimate_meal
 from db import add_meal, get_today_totals
 
-load_dotenv()
+load_dotenv(override=True)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 

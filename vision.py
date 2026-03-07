@@ -1,27 +1,83 @@
+import base64
+import json
+
+from dotenv import load_dotenv
+import os
+from openai import OpenAI
+
+load_dotenv(override=True)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 def estimate_meal(image_path: str, description: str | None = None) -> dict:
     """
-    Fake meal estimator for MVP stage.
-
-    Parameters
-    ----------
-    image_path : str
-        Path to the downloaded food image.
-    description : str | None
-        Optional caption from the user.
-
-    Returns
-    -------
-    dict
-        Estimated meal data.
+    Estimate calories and protein from a meal photo using structured JSON output.
+    Returns a dict like:
+    {
+        "dish": "...",
+        "calories": 123,
+        "protein": 12
+    }
     """
 
     print("Vision module called")
     print("Image path:", image_path)
     print("Description:", description)
 
-    # fake values for MVP testing
-    return {
-        "dish": "test meal",
-        "calories": 500,
-        "protein": 30
-    }
+    with open(image_path, "rb") as f:
+        image_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    caption_text = description if description else "No description provided"
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"""
+Estimate the meal in this image.
+
+User description: {caption_text}
+
+Estimate:
+- dish name
+- total calories in kcal
+- total protein in grams
+
+Return realistic approximate values for the whole visible meal.
+"""
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{image_b64}",
+                        "detail": "low"
+                    }
+                ]
+            }
+        ],
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "meal_estimate",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "dish": {"type": "string"},
+                        "calories": {"type": "number"},
+                        "protein": {"type": "number"}
+                    },
+                    "required": ["dish", "calories", "protein"],
+                    "additionalProperties": False
+                },
+                "strict": True
+            }
+        }
+    )
+
+    data = json.loads(response.output_text)
+
+    print("Structured output:", data)
+
+    return data

@@ -37,12 +37,12 @@ Result: bot correctly recognizes photo messages.
 
 Goal: obtain real image files inside the application.
 
--   [ ] Extract highest resolution photo (`message.photo[-1]`)
--   [ ] Request file info from Telegram API
--   [ ] Download file locally
--   [ ] Save to `temp/` folder
--   [ ] Print saved path to console
--   [ ] Reply "photo saved"
+-   [x] Extract highest resolution photo (`message.photo[-1]`)
+-   [x] Request file info from Telegram API
+-   [x] Download file locally
+-   [x] Save to `temp/` folder
+-   [x] Print saved path to console
+-   [x] Reply "photo saved"
 
 Result: photo is downloaded and saved locally.
 

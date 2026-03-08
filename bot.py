@@ -8,7 +8,7 @@ from aiogram.types import Message
 
 from dotenv import load_dotenv
 
-from vision import estimate_meal
+from vision import estimate_meal, estimate_text_meal
 from db import add_meal, get_today_totals
 
 load_dotenv(override=True)
@@ -51,6 +51,33 @@ async def photo_handler(message: Message):
     print("Saved photo to:", file_path)
 
     result = estimate_meal(str(file_path), caption)
+
+    add_meal(
+        message.from_user.id,
+        result["dish"],
+        result["calories"],
+        result["protein"]
+    )
+
+    totals = get_today_totals(message.from_user.id)
+
+    await message.answer(
+        f"{result['dish']}\n"
+        f"Calories: {result['calories']} kcal\n"
+        f"Protein: {result['protein']} g\n\n"
+        f"Today:\n"
+        f"Calories: {totals['calories']} kcal\n"
+        f"Protein: {totals['protein']} g"
+    )
+
+@dp.message(lambda message: message.text)
+async def text_meal_handler(message: Message):
+
+    text = message.text
+
+    print("Text meal received:", text)
+
+    result = estimate_text_meal(text)
 
     add_meal(
         message.from_user.id,

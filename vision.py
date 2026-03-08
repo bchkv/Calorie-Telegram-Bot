@@ -81,3 +81,41 @@ Return realistic approximate values for the whole visible meal.
     print("Structured output:", data)
 
     return data
+
+def estimate_text_meal(description: str) -> dict:
+
+    print("Text estimation:", description)
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "meal_estimate",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "dish": {"type": "string"},
+                        "calories": {"type": "number"},
+                        "protein": {"type": "number"}
+                    },
+                    "required": ["dish", "calories", "protein"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        input=f"""
+Estimate calories and protein for the following meal.
+
+Meal description:
+{description}
+
+Return realistic approximate values.
+"""
+    )
+
+    data = json.loads(response.output[0].content[0].text)
+
+    print("Structured output:", data)
+
+    return data

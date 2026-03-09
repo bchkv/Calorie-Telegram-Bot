@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from vision import estimate_meal, estimate_text_meal
 from db import add_meal, get_today_totals
 
+from aiogram.types import ErrorEvent
+
 import logging
 
 logging.basicConfig(
@@ -18,7 +20,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("bot.log")
+        logging.FileHandler("bot.log", encoding="utf-8")
     ]
 )
 
@@ -36,6 +38,10 @@ dp = Dispatcher()
 
 TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
+
+@dp.errors()
+async def error_handler(event: ErrorEvent):
+    logger.exception("Unhandled error: %s", event.exception)
 
 
 @dp.message(CommandStart())
@@ -59,13 +65,23 @@ async def photo_handler(message: Message):
     file_path = TEMP_DIR / f"{photo.file_id}.jpg"
 
     # download the file
-    await bot.download_file(file.file_path, destination=file_path)
+    try:
+        file = await bot.get_file(photo.file_id)
+        await bot.download_file(file.file_path, destination=file_path)
+    except Exception:
+        logger.exception("Failed to download photo")
+        await message.answer("Failed to download the photo.")
+        return
 
     logger.info("Saved photo to %s", file_path)
 
     # remove temp files after processing
     try:
         result = await estimate_meal(str(file_path), caption)
+    except Exception:
+        logger.exception("Meal estimation failed")
+        await message.answer("Sorry, I couldn't analyze that meal.")
+        return
     finally:
         if file_path.exists():
             os.remove(file_path)
@@ -95,7 +111,12 @@ async def text_meal_handler(message: Message):
 
     logger.info("Text meal received: %s", text)
 
-    result = await estimate_text_meal(text)
+    try:
+        result = await estimate_text_meal(text)
+    except Exception:
+        logger.exception("Text meal estimation failed")
+        await message.answer("Sorry, I couldn't estimate that meal.")
+        return
 
     add_meal(
         message.from_user.id,
@@ -116,6 +137,7 @@ async def text_meal_handler(message: Message):
     )
 
 async def main():
+    logger.info("Bot starting...")
     await dp.start_polling(bot)
 
 

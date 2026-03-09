@@ -65,6 +65,9 @@ async def photo_handler(message: Message):
 
     result = await estimate_meal(str(file_path), caption)
 
+    # remove the photo after processing
+    os.remove(file_path)
+
     add_meal(
         message.from_user.id,
         result["dish"],

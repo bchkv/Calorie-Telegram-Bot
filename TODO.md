@@ -16,8 +16,7 @@
 - [ ] Log errors to console
 
 ## File Handling
-- [ ] Delete temp image after processing
-- [ ] Ensure temp folder exists at startup
+- [X] Delete temp image after processing
 - [ ] Ignore non-image files accidentally sent
 
 ## Meal Handling

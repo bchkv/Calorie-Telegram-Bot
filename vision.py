@@ -46,16 +46,15 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
                         {
                             "type": "input_text",
                             "text": f"""
-Estimate the meal in this image.
+Estimate calories and protein.
 
-User description: {caption_text}
+Additional details about the meal: {caption_text}
 
 Estimate:
 - dish name
 - total calories in kcal
 - total protein in grams
 
-Return realistic approximate values for the whole visible meal.
 """
                         },
                         {

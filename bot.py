@@ -117,7 +117,7 @@ async def text_meal_handler(message: Message):
         result = await estimate_text_meal(text)
     except Exception:
         logger.exception("Text meal estimation failed")
-        await message.answer("Sorry, I couldn't estimate that meal.")
+        await message.answer("Sorry, the meal estimation failed.")
         return
 
     add_meal(

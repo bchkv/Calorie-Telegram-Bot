@@ -3,12 +3,13 @@ import json
 
 from dotenv import load_dotenv
 import os
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 load_dotenv(override=True)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def estimate_meal(image_path: str, description: str | None = None) -> dict:
+
+async def estimate_meal(image_path: str, description: str | None = None) -> dict:
     """
     Estimate calories and protein from a meal photo using structured JSON output.
     Returns a dict like:
@@ -28,7 +29,7 @@ def estimate_meal(image_path: str, description: str | None = None) -> dict:
 
     caption_text = description if description else "No description provided"
 
-    response = client.responses.create(
+    response = await client.responses.create(
         model="gpt-4.1-mini",
         input=[
             {
@@ -76,17 +77,18 @@ Return realistic approximate values for the whole visible meal.
         }
     )
 
+
     data = json.loads(response.output_text)
 
     print("Structured output:", data)
 
     return data
 
-def estimate_text_meal(description: str) -> dict:
 
+async def estimate_text_meal(description: str) -> dict:
     print("Text estimation:", description)
 
-    response = client.responses.create(
+    response = await client.responses.create(
         model="gpt-4.1-mini",
         text={
             "format": {

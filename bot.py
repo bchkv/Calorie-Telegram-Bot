@@ -50,7 +50,7 @@ async def photo_handler(message: Message):
 
     print("Saved photo to:", file_path)
 
-    result = estimate_meal(str(file_path), caption)
+    result = await estimate_meal(str(file_path), caption)
 
     add_meal(
         message.from_user.id,
@@ -77,7 +77,7 @@ async def text_meal_handler(message: Message):
 
     print("Text meal received:", text)
 
-    result = estimate_text_meal(text)
+    result = await estimate_text_meal(text)
 
     add_meal(
         message.from_user.id,

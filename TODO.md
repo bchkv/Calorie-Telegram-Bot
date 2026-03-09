@@ -2,7 +2,11 @@
 
 ## Full async implementation
 
-- [ ] Use AsyncOpenAI
+- [X] Use AsyncOpenAI
+
+## Proper logging implementation
+
+- [ ] Use Logging
 
 ## Stability & Reliability
 - [ ] Restart the bot automatically if it crashes (systemd on Linux)

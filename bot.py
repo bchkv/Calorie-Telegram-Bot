@@ -4,7 +4,7 @@ from pathlib import Path
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, BotCommand
 
 from dotenv import load_dotenv
 
@@ -38,6 +38,17 @@ dp = Dispatcher()
 
 TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
+
+async def set_commands(bot: Bot):
+
+    commands = [
+        BotCommand(command="start", description="Start the bot"),
+        BotCommand(command="today", description="Show today's meals"),
+        BotCommand(command="delete", description="Delete a meal: /delete <number>"),
+        BotCommand(command="help", description="Show help"),
+    ]
+
+    await bot.set_my_commands(commands)
 
 @dp.errors()
 async def error_handler(event: ErrorEvent):
@@ -207,11 +218,48 @@ async def delete_meal_handler(message: Message):
         parse_mode="Markdown"
     )
 
+@dp.message(Command("today"))
+async def today_handler(message: Message):
+
+    user_id = message.from_user.id
+    username = message.from_user.username or "no_username"
+
+    logger.info("User %s [%s] requested /today", user_id, username)
+
+    meals = get_today_meals(user_id)
+
+    if not meals:
+        await message.answer("📊 Today\n\nNo meals logged yet.")
+        return
+
+    totals = get_today_totals(user_id)
+
+    lines = ["📊 *Today meals:*\n"]
+
+    for i, meal in enumerate(meals, start=1):
+        lines.append(
+            f"*#{i}* 🍽 {meal['dish']} — "
+            f"{meal['calories']} kcal • {meal['protein']} g protein"
+        )
+
+    lines.append("\n────────────\n")
+
+    lines.append(
+        f"🔥 *{totals['calories']} kcal*\n"
+        f"💪 *{totals['protein']} g protein*"
+    )
+
+    text = "\n".join(lines)
+
+    await message.answer(text, parse_mode="Markdown")
+
 
 async def main():
     logger.info("Bot starting...")
-    await dp.start_polling(bot)
 
+    await set_commands(bot)
+
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
         asyncio.run(main())

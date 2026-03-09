@@ -154,5 +154,49 @@ def get_today_meal_count(user_id: int) -> int:
         raise
 
 
+def get_today_meals(user_id: int):
+    """Return today's meals ordered by time."""
+    start, end = get_day_window(user_id)
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT id, dish, calories, protein, created_at
+            FROM meals
+            WHERE user_id = ?
+            AND created_at >= ?
+            AND created_at < ?
+            ORDER BY created_at ASC
+            """,
+            (user_id, start, end)
+        )
+
+        rows = cursor.fetchall()
+
+        meals = []
+        for row in rows:
+            meals.append({
+                "id": row[0],
+                "dish": row[1],
+                "calories": row[2],
+                "protein": row[3],
+                "created_at": row[4],
+            })
+
+        return meals
+
+
+def delete_meal(meal_id: int):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "DELETE FROM meals WHERE id = ?",
+            (meal_id,)
+        )
+
+
 # initialize DB when module loads
 init_db()

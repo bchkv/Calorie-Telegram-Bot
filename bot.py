@@ -3,13 +3,13 @@ import os
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 
 from dotenv import load_dotenv
 
 from vision import estimate_meal, estimate_text_meal
-from db import add_meal, get_today_totals, get_today_meal_count
+from db import add_meal, get_today_totals, get_today_meal_count, get_today_meals, delete_meal
 
 from aiogram.types import ErrorEvent
 
@@ -159,6 +159,54 @@ async def text_meal_handler(message: Message):
         f"💪 *{totals['protein']} g protein*",
         parse_mode="Markdown"
     )
+
+
+@dp.message(Command("delete"))
+async def delete_meal_handler(message: Message):
+
+    user_id = message.from_user.id
+    username = message.from_user.username or "no_username"
+
+    parts = message.text.split()
+
+    if len(parts) != 2:
+        await message.answer("Usage: /delete <meal_number>")
+        return
+
+    try:
+        meal_number = int(parts[1])
+    except ValueError:
+        await message.answer("Meal number must be an integer.")
+        return
+
+    meals = get_today_meals(user_id)
+
+    if meal_number < 1 or meal_number > len(meals):
+        await message.answer("Invalid meal number.")
+        return
+
+    meal = meals[meal_number - 1]
+
+    delete_meal(meal["id"])
+
+    logger.info(
+        "User %s [%s] deleted meal #%s (%s)",
+        user_id,
+        username,
+        meal_number,
+        meal["dish"]
+    )
+
+    totals = get_today_totals(user_id)
+
+    await message.answer(
+        f"❌ Deleted *#{meal_number} {meal['dish']}*\n\n"
+        f"📊 *Today*\n"
+        f"🔥 *{totals['calories']} kcal*\n"
+        f"💪 *{totals['protein']} g protein*",
+        parse_mode="Markdown"
+    )
+
 
 async def main():
     logger.info("Bot starting...")

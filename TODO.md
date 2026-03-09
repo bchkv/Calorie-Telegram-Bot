@@ -32,6 +32,7 @@
 - [ ] Ignore commands in text meal handler
 - [ ] Handle empty messages
 - [ ] Add /help command
+- [ ] If the meal is large, you can highlight it
 
 ## Final MVP Features
 - [ ] Photo meal estimation

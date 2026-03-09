@@ -46,16 +46,21 @@ async def error_handler(event: ErrorEvent):
 
 @dp.message(CommandStart())
 async def start_handler(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "no_username"
+    logger.info("User %s [%s] start command", user_id, username)
     await message.answer("Bot is alive.")
 
 
 @dp.message(lambda message: message.photo)
 async def photo_handler(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "no_username"
 
     caption = message.caption
     photo = message.photo[-1]   # highest resolution
 
-    logger.info("Photo received")
+    logger.info("User %s [%s] sent photo", user_id, username)
     logger.info("Caption: %s", caption)
 
     # get file info from Telegram
@@ -69,7 +74,7 @@ async def photo_handler(message: Message):
         file = await bot.get_file(photo.file_id)
         await bot.download_file(file.file_path, destination=file_path)
     except Exception:
-        logger.exception("Failed to download photo")
+        logger.exception("Photo download failed for user %s [%s]", user_id, username)
         await message.answer("Failed to download the photo.")
         return
 
@@ -79,7 +84,7 @@ async def photo_handler(message: Message):
     try:
         result = await estimate_meal(str(file_path), caption)
     except Exception:
-        logger.exception("Meal estimation failed")
+        logger.exception("Vision estimation failed for user %s [%s]", user_id, username)
         await message.answer("Sorry, I couldn't analyze that meal.")
         return
     finally:
@@ -91,6 +96,15 @@ async def photo_handler(message: Message):
         result["dish"],
         result["calories"],
         result["protein"]
+    )
+
+    logger.info(
+        "User %s [%s] meal saved: %s (%s kcal, %s g protein)",
+        user_id,
+        username,
+        result["dish"],
+        result["calories"],
+        result["protein"],
     )
 
     totals = get_today_totals(message.from_user.id)
@@ -106,17 +120,19 @@ async def photo_handler(message: Message):
         parse_mode="Markdown"
     )
 
-@dp.message(lambda message: message.text)
+@dp.message(lambda m: m.text and not m.text.startswith("/"))
 async def text_meal_handler(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "no_username"
 
     text = message.text
 
-    logger.info("Text meal received: %s", text)
+    logger.info("User %s [%s] text meal: %s", user_id, username, text)
 
     try:
         result = await estimate_text_meal(text)
     except Exception:
-        logger.exception("Text meal estimation failed")
+        logger.exception("Text meal estimation failed for user %s [%s]", user_id, username)
         await message.answer("Sorry, the meal estimation failed.")
         return
 

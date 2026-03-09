@@ -30,6 +30,16 @@ def init_db():
         )
         """)
 
+        # add new columns if they don't exist
+        try:
+            cursor.execute("ALTER TABLE user_settings ADD COLUMN calorie_goal INTEGER")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE user_settings ADD COLUMN protein_goal INTEGER")
+        except sqlite3.OperationalError:
+            pass
 
 def get_day_start_hour(user_id: int) -> int:
     try:
@@ -196,6 +206,49 @@ def delete_meal(meal_id: int):
             "DELETE FROM meals WHERE id = ?",
             (meal_id,)
         )
+
+
+def set_daily_goal(user_id: int, calories: int, protein: int):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO user_settings (user_id, calorie_goal, protein_goal)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id)
+            DO UPDATE SET
+                calorie_goal = excluded.calorie_goal,
+                protein_goal = excluded.protein_goal
+            """,
+            (user_id, calories, protein)
+        )
+
+
+def get_daily_goal(user_id: int):
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT calorie_goal, protein_goal
+            FROM user_settings
+            WHERE user_id = ?
+            """,
+            (user_id,)
+        )
+
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "calories": row[0],
+            "protein": row[1]
+        }
+
 
 
 # initialize DB when module loads

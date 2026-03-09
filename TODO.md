@@ -8,15 +8,6 @@
 - [ ] Create separate modules (vision.py → description, nutrition.py → estimation)
 - [ ] Log intermediate description for debugging
 
-## Meal Handling
-- [ ] Enumerate meals for the current day
-- [ ] Show numbered list of meals for today
-- [ ] Add command to view today's meals (/today)
-
-## Meal Editing
-- [ ] Add functionality to delete meals from the list
-- [ ] Add command /delete <number>
-- [ ] Confirm deletion before removing meal
 
 ## Nutrition Goals
 - [ ] Add daily calorie goal

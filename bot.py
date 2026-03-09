@@ -9,7 +9,8 @@ from aiogram.types import Message, BotCommand
 from dotenv import load_dotenv
 
 from vision import estimate_meal, estimate_text_meal
-from db import add_meal, get_today_totals, get_today_meal_count, get_today_meals, delete_meal
+from db import (add_meal, get_today_totals, get_today_meal_count, get_today_meals, delete_meal, set_daily_goal,
+                get_daily_goal)
 
 from aiogram.types import ErrorEvent
 
@@ -45,7 +46,8 @@ async def set_commands(bot: Bot):
         BotCommand(command="start", description="Start the bot"),
         BotCommand(command="today", description="Show today's meals"),
         BotCommand(command="delete", description="Delete a meal: /delete <number>"),
-        BotCommand(command="help", description="Show help"),
+        BotCommand(command="goal", description="Set daily calorie & protein goal"),
+        BotCommand(command="help", description="How to use the bot"),
     ]
 
     await bot.set_my_commands(commands)
@@ -120,7 +122,15 @@ async def photo_handler(message: Message):
         result["protein"],
     )
 
-    totals = get_today_totals(message.from_user.id)
+    totals = get_today_totals(user_id)
+    goal = get_daily_goal(user_id)
+
+    if goal:
+        calories_line = f"🔥 *{totals['calories']} / {goal['calories']} kcal*"
+        protein_line = f"💪 *{totals['protein']} / {goal['protein']} g protein*"
+    else:
+        calories_line = f"🔥 *{totals['calories']} kcal*"
+        protein_line = f"💪 *{totals['protein']} g protein*"
 
     await message.answer(
         f"*#{meal_number} 🍽 {result['dish']}*\n\n"
@@ -128,8 +138,8 @@ async def photo_handler(message: Message):
         f"💪 *{result['protein']} g protein*\n\n"
         f"────────────\n"
         f"📊 *Today*\n\n"
-        f"🔥 *{totals['calories']} kcal*\n"
-        f"💪 *{totals['protein']} g protein*",
+f"{calories_line}\n"
+f"{protein_line}",
         parse_mode="Markdown"
     )
 
@@ -158,7 +168,15 @@ async def text_meal_handler(message: Message):
         result["protein"]
     )
 
-    totals = get_today_totals(message.from_user.id)
+    totals = get_today_totals(user_id)
+    goal = get_daily_goal(user_id)
+
+    if goal:
+        calories_line = f"🔥 *{totals['calories']} / {goal['calories']} kcal*"
+        protein_line = f"💪 *{totals['protein']} / {goal['protein']} g protein*"
+    else:
+        calories_line = f"🔥 *{totals['calories']} kcal*"
+        protein_line = f"💪 *{totals['protein']} g protein*"
 
     await message.answer(
         f"*#{meal_number} 🍽 {result['dish']}*\n\n"
@@ -166,8 +184,8 @@ async def text_meal_handler(message: Message):
         f"💪 *{result['protein']} g protein*\n\n"
         f"────────────\n"
         f"📊 *Today*\n\n"
-        f"🔥 *{totals['calories']} kcal*\n"
-        f"💪 *{totals['protein']} g protein*",
+f"{calories_line}\n"
+f"{protein_line}",
         parse_mode="Markdown"
     )
 
@@ -252,6 +270,25 @@ async def today_handler(message: Message):
     text = "\n".join(lines)
 
     await message.answer(text, parse_mode="Markdown")
+
+
+@dp.message(Command("goal"))
+async def goal_handler(message: Message):
+
+    user_id = message.from_user.id
+
+    parts = message.text.split()
+
+    if len(parts) == 1:
+        await message.answer(
+            "🎯 *Set your daily goal*\n\n"
+            "Usage:\n"
+            "`/goal calories protein`\n\n"
+            "Example:\n"
+            "`/goal 2500 150`",
+            parse_mode="Markdown"
+        )
+        return
 
 
 async def main():

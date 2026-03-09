@@ -96,12 +96,14 @@ async def photo_handler(message: Message):
     totals = get_today_totals(message.from_user.id)
 
     await message.answer(
-        f"{result['dish']}\n"
-        f"Calories: {result['calories']} kcal\n"
-        f"Protein: {result['protein']} g\n\n"
-        f"Today:\n"
-        f"Calories: {totals['calories']} kcal\n"
-        f"Protein: {totals['protein']} g"
+        f"🍽 *{result['dish']}*\n\n"
+        f"Calories: *{result['calories']} kcal*\n"
+        f"Protein: *{result['protein']} g*\n\n"
+        f"────────────\n"
+        f"📊 *Today*\n"
+        f"Calories: *{totals['calories']} kcal*\n"
+        f"Protein: *{totals['protein']} g*",
+        parse_mode="Markdown"
     )
 
 @dp.message(lambda message: message.text)
@@ -128,12 +130,14 @@ async def text_meal_handler(message: Message):
     totals = get_today_totals(message.from_user.id)
 
     await message.answer(
-        f"{result['dish']}\n"
-        f"Calories: {result['calories']} kcal\n"
-        f"Protein: {result['protein']} g\n\n"
-        f"Today:\n"
-        f"Calories: {totals['calories']} kcal\n"
-        f"Protein: {totals['protein']} g"
+        f"🍽 *{result['dish']}*\n\n"
+        f"Calories: *{result['calories']} kcal*\n"
+        f"Protein: *{result['protein']} g*\n\n"
+        f"────────────\n"
+        f"📊 *Today*\n"
+        f"Calories: *{totals['calories']} kcal*\n"
+        f"Protein: *{totals['protein']} g*",
+        parse_mode="Markdown"
     )
 
 async def main():

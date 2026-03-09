@@ -245,12 +245,12 @@ async def today_handler(message: Message):
     logger.info("User %s [%s] requested /today", user_id, username)
 
     meals = get_today_meals(user_id)
+    totals = get_today_totals(user_id)
+    goal = get_daily_goal(user_id)
 
     if not meals:
         await message.answer("📊 Today\n\nNo meals logged yet.")
         return
-
-    totals = get_today_totals(user_id)
 
     lines = ["📊 *Today meals:*\n"]
 
@@ -262,34 +262,81 @@ async def today_handler(message: Message):
 
     lines.append("\n────────────\n")
 
-    lines.append(
-        f"🔥 *{totals['calories']} kcal*\n"
-        f"💪 *{totals['protein']} g protein*"
-    )
+    if goal:
+        lines.append(
+            f"🔥 *{totals['calories']} / {goal['calories']} kcal*\n"
+            f"💪 *{totals['protein']} / {goal['protein']} g protein*"
+        )
+    else:
+        lines.append(
+            f"🔥 *{totals['calories']} kcal*\n"
+            f"💪 *{totals['protein']} g protein*"
+        )
 
     text = "\n".join(lines)
 
     await message.answer(text, parse_mode="Markdown")
 
-
 @dp.message(Command("goal"))
 async def goal_handler(message: Message):
 
     user_id = message.from_user.id
+    username = message.from_user.username or "no_username"
 
     parts = message.text.split()
 
+    # show instructions if user typed only /goal
     if len(parts) == 1:
-        await message.answer(
-            "🎯 *Set your daily goal*\n\n"
-            "Usage:\n"
-            "`/goal calories protein`\n\n"
-            "Example:\n"
-            "`/goal 2500 150`",
-            parse_mode="Markdown"
-        )
+        goal = get_daily_goal(user_id)
+
+        if goal:
+            await message.answer(
+                f"🎯 *Your current goal*\n\n"
+                f"🔥 {goal['calories']} kcal\n"
+                f"💪 {goal['protein']} g protein\n\n"
+                f"To change:\n"
+                f"`/goal calories protein`\n"
+                f"Example: `/goal 2500 150`",
+                parse_mode="Markdown"
+            )
+        else:
+            await message.answer(
+                "🎯 *Set your daily goal*\n\n"
+                "Usage:\n"
+                "`/goal calories protein`\n\n"
+                "Example:\n"
+                "`/goal 2500 150`",
+                parse_mode="Markdown"
+            )
         return
 
+    if len(parts) != 3:
+        await message.answer("Usage: /goal <calories> <protein>")
+        return
+
+    try:
+        calories = int(parts[1])
+        protein = int(parts[2])
+    except ValueError:
+        await message.answer("Calories and protein must be numbers.")
+        return
+
+    set_daily_goal(user_id, calories, protein)
+
+    logger.info(
+        "User %s [%s] set daily goal: %s kcal, %s g protein",
+        user_id,
+        username,
+        calories,
+        protein
+    )
+
+    await message.answer(
+        f"🎯 *Daily goal set*\n\n"
+        f"🔥 {calories} kcal\n"
+        f"💪 {protein} g protein",
+        parse_mode="Markdown"
+    )
 
 async def main():
     logger.info("Bot starting...")

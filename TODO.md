@@ -8,10 +8,6 @@
 - [ ] Create separate modules (vision.py → description, nutrition.py → estimation)
 - [ ] Log intermediate description for debugging
 
-
-## Nutrition Goals
-- [ ] Add daily calorie goal
-- [ ] Add daily protein goal
 - [ ] Show progress toward goals
 
 ## Day Handling
@@ -20,6 +16,7 @@
 - [ ] Reset daily totals based on chosen day start
 
 ## UX Improvements
+- [ ] Set daily goals interactively
 - [ ] Ignore commands in text meal handler
 - [ ] Handle empty messages
 - [ ] Add /help command

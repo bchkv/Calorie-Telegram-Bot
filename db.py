@@ -127,5 +127,32 @@ def get_today_totals(user_id: int):
         raise
 
 
+def get_today_meal_count(user_id: int) -> int:
+    """Return how many meals the user already logged today."""
+    try:
+        start, end = get_day_window(user_id)
+
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM meals
+                WHERE user_id = ?
+                AND created_at >= ?
+                AND created_at < ?
+                """,
+                (user_id, start, end)
+            )
+
+            count = cursor.fetchone()[0]
+            return count
+
+    except Exception:
+        logger.exception("Failed to count meals for user %s", user_id)
+        raise
+
+
 # initialize DB when module loads
 init_db()

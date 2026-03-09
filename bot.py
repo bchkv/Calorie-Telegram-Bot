@@ -9,7 +9,7 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 
 from vision import estimate_meal, estimate_text_meal
-from db import add_meal, get_today_totals
+from db import add_meal, get_today_totals, get_today_meal_count
 
 from aiogram.types import ErrorEvent
 
@@ -91,6 +91,8 @@ async def photo_handler(message: Message):
         if file_path.exists():
             os.remove(file_path)
 
+    meal_number = get_today_meal_count(user_id) + 1
+
     add_meal(
         message.from_user.id,
         result["dish"],
@@ -110,13 +112,13 @@ async def photo_handler(message: Message):
     totals = get_today_totals(message.from_user.id)
 
     await message.answer(
-        f"🍽 *{result['dish']}*\n\n"
-        f"Calories: *{result['calories']} kcal*\n"
-        f"Protein: *{result['protein']} g*\n\n"
+        f"*#{meal_number} 🍽 {result['dish']}*\n\n"
+        f"🔥 *{result['calories']} kcal*\n"
+        f"💪 *{result['protein']} g protein*\n\n"
         f"────────────\n"
-        f"📊 *Today*\n"
-        f"Calories: *{totals['calories']} kcal*\n"
-        f"Protein: *{totals['protein']} g*",
+        f"📊 *Today*\n\n"
+        f"🔥 *{totals['calories']} kcal*\n"
+        f"💪 *{totals['protein']} g protein*",
         parse_mode="Markdown"
     )
 
@@ -136,6 +138,8 @@ async def text_meal_handler(message: Message):
         await message.answer("Sorry, the meal estimation failed.")
         return
 
+    meal_number = get_today_meal_count(user_id) + 1
+
     add_meal(
         message.from_user.id,
         result["dish"],
@@ -146,13 +150,13 @@ async def text_meal_handler(message: Message):
     totals = get_today_totals(message.from_user.id)
 
     await message.answer(
-        f"🍽 *{result['dish']}*\n\n"
-        f"Calories: *{result['calories']} kcal*\n"
-        f"Protein: *{result['protein']} g*\n\n"
+        f"*#{meal_number} 🍽 {result['dish']}*\n\n"
+        f"🔥 *{result['calories']} kcal*\n"
+        f"💪 *{result['protein']} g protein*\n\n"
         f"────────────\n"
-        f"📊 *Today*\n"
-        f"Calories: *{totals['calories']} kcal*\n"
-        f"Protein: *{totals['protein']} g*",
+        f"📊 *Today*\n\n"
+        f"🔥 *{totals['calories']} kcal*\n"
+        f"💪 *{totals['protein']} g protein*",
         parse_mode="Markdown"
     )
 

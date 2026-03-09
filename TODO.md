@@ -1,5 +1,9 @@
 # Calorie Telegram Bot -- MVP TODO
 
+## Full async implementation
+
+- [ ] Use AsyncOpenAI
+
 ## Stability & Reliability
 - [ ] Restart the bot automatically if it crashes (systemd on Linux)
 - [ ] Add global error handler for aiogram

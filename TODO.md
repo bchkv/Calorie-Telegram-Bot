@@ -1,24 +1,5 @@
 # Calorie Telegram Bot -- MVP TODO
 
-## Full async implementation
-
-- [X] Use AsyncOpenAI
-
-## Proper logging implementation
-
-- [X] Use Logging
-
-## Stability & Reliability
-- [ ] Restart the bot automatically if it crashes (systemd on Linux)
-- [ ] Add global error handler for aiogram
-- [ ] Wrap OpenAI calls in try/except
-- [ ] Wrap DB operations in try/except
-- [ ] Log errors to console
-
-## File Handling
-- [X] Delete temp image after processing
-- [ ] Ignore non-image files accidentally sent
-
 ## Meal Handling
 - [ ] Enumerate meals for the current day
 - [ ] Show numbered list of meals for today

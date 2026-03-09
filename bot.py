@@ -63,10 +63,12 @@ async def photo_handler(message: Message):
 
     logger.info("Saved photo to %s", file_path)
 
-    result = await estimate_meal(str(file_path), caption)
-
-    # remove the photo after processing
-    os.remove(file_path)
+    # remove temp files after processing
+    try:
+        result = await estimate_meal(str(file_path), caption)
+    finally:
+        if file_path.exists():
+            os.remove(file_path)
 
     add_meal(
         message.from_user.id,

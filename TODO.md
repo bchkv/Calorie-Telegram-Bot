@@ -6,7 +6,7 @@
 
 ## Proper logging implementation
 
-- [ ] Use Logging
+- [X] Use Logging
 
 ## Stability & Reliability
 - [ ] Restart the bot automatically if it crashes (systemd on Linux)

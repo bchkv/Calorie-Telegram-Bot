@@ -5,6 +5,10 @@ from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 load_dotenv(override=True)
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -20,14 +24,14 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
     }
     """
 
-    print("Vision module called")
-    print("Image path:", image_path)
-    print("Description:", description)
+    logger.info("Vision module called")
+    logger.info("Image path: %s", image_path)
+    logger.info("Description: %s", description)
 
     with open(image_path, "rb") as f:
         image_b64 = base64.b64encode(f.read()).decode("utf-8")
 
-    caption_text = description if description else "No description provided"
+    caption_text = description or "No description provided"
 
     response = await client.responses.create(
         model="gpt-4.1-mini",
@@ -80,13 +84,13 @@ Return realistic approximate values for the whole visible meal.
 
     data = json.loads(response.output_text)
 
-    print("Structured output:", data)
+    logger.info("Structured output: %s", data)
 
     return data
 
 
 async def estimate_text_meal(description: str) -> dict:
-    print("Text estimation:", description)
+    logger.info("Text estimation: %s", description)
 
     response = await client.responses.create(
         model="gpt-4.1-mini",
@@ -118,6 +122,6 @@ Return realistic approximate values.
 
     data = json.loads(response.output[0].content[0].text)
 
-    print("Structured output:", data)
+    logger.info("Structured output: %s", data)
 
     return data

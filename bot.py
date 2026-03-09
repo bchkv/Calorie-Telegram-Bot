@@ -11,6 +11,19 @@ from dotenv import load_dotenv
 from vision import estimate_meal, estimate_text_meal
 from db import add_meal, get_today_totals
 
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("bot.log")
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 load_dotenv(override=True)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -36,8 +49,8 @@ async def photo_handler(message: Message):
     caption = message.caption
     photo = message.photo[-1]   # highest resolution
 
-    print("Photo received")
-    print("Caption:", caption)
+    logger.info("Photo received")
+    logger.info("Caption: %s", caption)
 
     # get file info from Telegram
     file = await bot.get_file(photo.file_id)
@@ -48,7 +61,7 @@ async def photo_handler(message: Message):
     # download the file
     await bot.download_file(file.file_path, destination=file_path)
 
-    print("Saved photo to:", file_path)
+    logger.info("Saved photo to %s", file_path)
 
     result = await estimate_meal(str(file_path), caption)
 
@@ -75,7 +88,7 @@ async def text_meal_handler(message: Message):
 
     text = message.text
 
-    print("Text meal received:", text)
+    logger.info("Text meal received: %s", text)
 
     result = await estimate_text_meal(text)
 

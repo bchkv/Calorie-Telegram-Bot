@@ -2,21 +2,44 @@
 
 ## Core Refactor
 
+Improve the canonical object:
+
+- Add weight estimation
+- Preserve rich visual/text information so important calorie signals are not lost
+- Allow detailed descriptions extracted from images
+
 - [ ] Split meal processing into 3 stages:
   - [ ] input understanding
   - [ ] canonical meal parsing
   - [ ] nutrition estimation
+
 - [ ] Unify all modalities around one shared canonical meal object
 - [ ] Keep the Telegram bot layer thin and route all logic through services
 
+
 ## Pipeline Design
+
+Base pipelines:
 
 - [ ] Text -> canonical meal object -> nutrition estimation
 - [ ] Image -> visual meal description -> canonical meal object -> nutrition estimation
 - [ ] Audio -> speech-to-text -> canonical meal object -> nutrition estimation
+
+Hybrid refinement pipeline (optional):
+
+- [ ] Canonical meal object + original image -> nutrition estimation refinement
+
+This allows the estimator to use structured information while still having access
+to visual cues like oil shine, portion thickness, sauces, etc.
+
+Schema design:
+
 - [ ] Decide canonical meal object schema
 - [ ] Store both `summary` and structured `items`
+- [ ] Store a `detailed_description` extracted from images/text
+- [ ] Allow optional `estimated_weight_g`
 - [ ] Decide how to represent uncertainty / assumptions internally
+
 
 ## Project Structure
 
@@ -31,21 +54,32 @@
 - [ ] Add `app/ui/formatting.py`
 - [ ] Add `app/prompts/`
 - [ ] Add `main.py` as the entrypoint
+
+Directories:
+
 - [ ] Create `data/` for persistent files
 - [ ] Create `temp/` for temporary runtime files
 - [ ] Add `tests/`
 
+
 ## Canonical Meal Object
 
 - [ ] Define canonical schema, e.g.:
+
   - [ ] `summary`
+  - [ ] `detailed_description`
   - [ ] `items[]`
   - [ ] `quantity`
   - [ ] `unit`
+  - [ ] optional `estimated_weight_g`
+  - [ ] optional `ingredients[]`
   - [ ] optional `notes`
+
 - [ ] Decide whether image parsing should output canonical form directly
 - [ ] Decide how vague text inputs should map into canonical form
 - [ ] Add examples of canonical objects for common meals
+- [ ] Decide how confidence / uncertainty is represented
+
 
 ## Bot Layer
 
@@ -54,10 +88,13 @@
 - [ ] Add `/help` handler
 - [ ] Add `/delete_all_today` or similar command
 - [ ] Add support for editing or replacing logged meals
-- [ ] Add buttons for common actions:
-  - [ ] delete meal
-  - [ ] show day log
-  - [ ] set goal
+
+Buttons:
+
+- [ ] delete meal
+- [ ] show day log
+- [ ] set goal
+
 
 ## Features
 
@@ -70,6 +107,7 @@
 - [ ] Trend extrapolation
 - [ ] User-editable estimated meals after logging
 
+
 ## Shortcut / API Support
 
 - [ ] Add `app/api/server.py`
@@ -78,44 +116,71 @@
 - [ ] Make the Shortcut
 - [ ] Send meal data from Shortcut to the server
 - [ ] Share/log the result in the bot
+
+Security:
+
 - [ ] Add auth token for Shortcut -> server requests
 - [ ] Validate incoming request schema
 - [ ] Add basic rate limiting / abuse protection
+
+Deployment:
+
 - [ ] Decide where the server will be hosted
 - [ ] Add HTTPS deployment plan
 
+
 ## Reliability / Quality
+
+Testing:
 
 - [ ] Add golden test cases for meal parsing and estimation
 - [ ] Save sample text/photo inputs for regression testing
 - [ ] Compare old vs new pipeline on the same examples
+
+Sanity checks:
+
 - [ ] Add sanity checks for obviously wrong totals
 - [ ] Add fallback behavior when description extraction is uncertain
 - [ ] Add fallback behavior when estimation is uncertain
+
+Edge cases:
+
 - [ ] Add regression cases for repeated identical items
 - [ ] Test vague vs detailed user inputs
+
 
 ## Data / DB
 
 - [ ] Decide DB location under `data/`
 - [ ] Add DB initialization
 - [ ] Add simple migrations strategy
+
+Data storage:
+
 - [ ] Store original input source (`text`, `image`, later `audio`)
 - [ ] Store original raw user input where useful
 - [ ] Store intermediate visual/text description for debugging
 - [ ] Store canonical meal object for debugging
+
+Maintenance:
+
 - [ ] Add backup/export plan
+
 
 ## Observability
 
 - [ ] Improve structured logging
 - [ ] Log pipeline stage failures separately
-- [ ] Add debug mode for inspecting:
-  - [ ] raw input
-  - [ ] extracted description
-  - [ ] canonical meal object
-  - [ ] final estimate
+
+Debugging mode:
+
+- [ ] raw input
+- [ ] extracted description
+- [ ] canonical meal object
+- [ ] final estimate
+
 - [ ] Add request IDs / meal IDs in logs
+
 
 ## Prompt / Model Work
 
@@ -124,11 +189,16 @@
 - [ ] Test `detail: low` vs `high`
 - [ ] Evaluate whether bigger models are worth the cost
 - [ ] Define fallback model strategy
-- [ ] Add targeted prompts for:
-  - [ ] visual description extraction
-  - [ ] text-to-canonical parsing
-  - [ ] nutrition estimation
+
+Prompt types:
+
+- [ ] visual description extraction
+- [ ] text-to-canonical parsing
+- [ ] nutrition estimation
+- [ ] hybrid canonical + image refinement
+
 - [ ] Add test cases for quantity consistency
+
 
 ## Product Decisions
 
@@ -138,6 +208,7 @@
 - [ ] Decide whether users can edit estimated meals after logging
 - [ ] Decide whether to show intermediate meal interpretation on demand
 
+
 ## UX Improvements
 
 - [ ] Shorten the line divider
@@ -146,6 +217,7 @@
 - [ ] Set daily goals interactively
 - [ ] Improve deletion UX
 - [ ] Make replies more compact but still readable
+
 
 ## Nice-to-Have
 

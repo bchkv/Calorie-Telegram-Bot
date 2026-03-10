@@ -12,20 +12,27 @@ load_dotenv(override=True)
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-async def estimate_meal(image_path: str, description: str | None = None) -> dict:
+async def describe_meal_from_image(image_path: str, caption: str | None = None) -> dict:
     """
-    Estimate calories and protein from a meal photo using structured JSON output.
+    Extract a canonical meal description from a meal photo.
+
     Returns a dict like:
     {
-        "dish": "2 tuna salad toasts",
-        "calories": 420,
-        "protein": 28
+        "summary": "2 tuna salad toasts",
+        "items": [
+            {
+                "name": "tuna salad toast",
+                "quantity": 2,
+                "unit": "pieces"
+            }
+        ],
+        "notes": "open-faced, toasted white bread"
     }
     """
 
-    logger.info("Vision module called")
+    logger.info("Vision description called")
     logger.info("Image path: %s", image_path)
-    logger.info("Description: %s", description)
+    logger.info("Caption: %s", caption)
 
     try:
         with open(image_path, "rb") as f:
@@ -34,35 +41,38 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
         logger.exception("Failed to read image file: %s", image_path)
         raise
 
-    caption_text = description or "No description provided"
+    caption_text = caption or "No caption provided"
 
     prompt = f"""
-Estimate calories and protein of all the food in the photo.
+Analyze the meal photo and return a canonical meal description.
 
-Additional details about the meal: {caption_text}
+Additional details from the user: {caption_text}
 
 Return:
-- short dish name
-- total calories in kcal
-- total protein in grams
+- summary: short description of the whole meal
+- items: structured list of visible food items
+- notes: short optional notes
 
 Rules:
-- Nutrition values must cover all visible food in the image.
-- The dish field must describe the whole plate/meal, not just one piece.
-- If multiple identical pieces are visible, include that quantity in the dish name itself.
-- Use compound dish names when appropriate.
+- Describe all visible food in the image.
+- If multiple identical items are visible, include the correct quantity.
+- The summary must describe the whole meal, not just one item.
+- Be realistic and concise.
+- Do not estimate calories or protein.
+- If an exact ingredient is uncertain, use the most likely plain description.
 
-Good examples of dish names:
-- "2 tuna salad toasts"
-- "2 open-faced tuna sandwiches"
-- "3 chicken tacos"
-- "2 slices of pizza"
-
-Bad examples:
-- "sandwich" if two sandwiches are visible
-- "toast" if two toasts are visible
-
-Be realistic and concise.
+Good example:
+{{
+  "summary": "2 tuna salad toasts",
+  "items": [
+    {{
+      "name": "tuna salad toast",
+      "quantity": 2,
+      "unit": "pieces"
+    }}
+  ],
+  "notes": "open-faced, toasted bread"
+}}
 """.strip()
 
     try:
@@ -87,15 +97,27 @@ Be realistic and concise.
             text={
                 "format": {
                     "type": "json_schema",
-                    "name": "meal_estimate",
+                    "name": "meal_description",
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "dish": {"type": "string"},
-                            "calories": {"type": "number"},
-                            "protein": {"type": "number"},
+                            "summary": {"type": "string"},
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "quantity": {"type": "number"},
+                                        "unit": {"type": "string"},
+                                    },
+                                    "required": ["name", "quantity", "unit"],
+                                    "additionalProperties": False,
+                                },
+                            },
+                            "notes": {"type": "string"},
                         },
-                        "required": ["dish", "calories", "protein"],
+                        "required": ["summary", "items", "notes"],
                         "additionalProperties": False,
                     },
                     "strict": True,
@@ -103,60 +125,14 @@ Be realistic and concise.
             },
         )
     except Exception:
-        logger.exception("OpenAI vision request failed")
+        logger.exception("OpenAI vision description request failed")
         raise
 
     try:
         data = json.loads(response.output_text)
     except Exception:
-        logger.exception("Failed to parse vision response as JSON")
+        logger.exception("Failed to parse vision description response as JSON")
         raise
 
-    logger.info("Structured output: %s", data)
-    return data
-
-async def estimate_text_meal(description: str) -> dict:
-    logger.info("Text estimation: %s", description)
-
-    try:
-        response = await client.responses.create(
-            model="gpt-4.1-mini",
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "meal_estimate",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "dish": {"type": "string"},
-                            "calories": {"type": "number"},
-                            "protein": {"type": "number"}
-                        },
-                        "required": ["dish", "calories", "protein"],
-                        "additionalProperties": False
-                    },
-                    "strict": True
-                }
-            },
-            input=f"""
-Estimate calories and protein for the following meal.
-
-Meal description:
-{description}
-
-Return realistic approximate values.
-"""
-        )
-    except Exception:
-        logger.exception("OpenAI text meal request failed")
-        raise
-
-    try:
-        data = json.loads(response.output_text)
-    except Exception:
-        logger.exception("Failed to parse text meal response as JSON")
-        raise
-
-    logger.info("Structured output: %s", data)
-
+    logger.info("Canonical meal description: %s", data)
     return data

@@ -1,30 +1,34 @@
 import asyncio
+import logging
 import os
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, BotCommand
-
+from aiogram.filters import Command, CommandStart
+from aiogram.types import BotCommand, ErrorEvent, Message
 from dotenv import load_dotenv
 
-from vision import estimate_meal, estimate_text_meal
-from db import (add_meal, get_today_totals, get_today_meal_count, get_today_meals, delete_meal, set_daily_goal,
-                get_daily_goal)
-# import format_today_list as an alias for format_today_meals
-from ui import format_meal, format_today_totals, format_today_meals, format_goal, format_goal_set
-
-from aiogram.types import ErrorEvent
-
-import logging
+from db import (
+    add_meal,
+    delete_meal,
+    get_daily_goal,
+    get_today_meal_count,
+    get_today_meals,
+    get_today_totals,
+    set_daily_goal,
+)
+from meal_parser import parse_meal_from_text
+from nutrition_estimation import estimate_nutrition_from_canonical
+from ui import format_goal, format_goal_set, format_meal, format_today_meals, format_today_totals
+from vision import describe_meal_from_image
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("bot.log", encoding="utf-8")
-    ]
+        logging.FileHandler("bot.log", encoding="utf-8"),
+    ],
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +36,6 @@ logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-
 if not TOKEN:
     raise RuntimeError("TELEGRAM_TOKEN not set")
 
@@ -42,7 +45,8 @@ dp = Dispatcher()
 TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
 
-async def set_commands(bot: Bot):
+
+async def set_commands(bot: Bot) -> None:
     commands = [
         BotCommand(command="start", description="Start the bot"),
         BotCommand(command="today", description="Show today's meals"),
@@ -52,17 +56,19 @@ async def set_commands(bot: Bot):
     ]
     await bot.set_my_commands(commands)
 
+
 @dp.errors()
-async def error_handler(event: ErrorEvent):
+async def error_handler(event: ErrorEvent) -> None:
     logger.exception("Unhandled error: %s", event.exception)
 
 
 @dp.message(CommandStart())
-async def start_handler(message: Message):
+async def start_handler(message: Message) -> None:
     await message.answer("Bot is alive. Send me a photo or text description of your meal!")
 
+
 @dp.message(lambda message: message.photo)
-async def photo_handler(message: Message):
+async def photo_handler(message: Message) -> None:
     user_id = message.from_user.id
     photo = message.photo[-1]
     file_path = TEMP_DIR / f"{photo.file_id}.jpg"
@@ -70,14 +76,17 @@ async def photo_handler(message: Message):
     try:
         file = await bot.get_file(photo.file_id)
         await bot.download_file(file.file_path, destination=file_path)
-        result = await estimate_meal(str(file_path), message.caption)
+
+        meal = await describe_meal_from_image(str(file_path), message.caption)
+        result = await estimate_nutrition_from_canonical(meal)
+
     except Exception:
-        logger.exception("Vision processing failed")
+        logger.exception("Photo meal pipeline failed")
         await message.answer("Sorry, I couldn't analyze that meal.")
         return
     finally:
         if file_path.exists():
-            os.remove(file_path)
+            file_path.unlink()
 
     meal_number = get_today_meal_count(user_id) + 1
     add_meal(user_id, result["dish"], result["calories"], result["protein"])
@@ -85,19 +94,21 @@ async def photo_handler(message: Message):
     totals = get_today_totals(user_id)
     goal = get_daily_goal(user_id)
 
-    # UI logic integrated here
-    meal_text = format_meal(meal_number, result['dish'], result['calories'], result['protein'])
+    meal_text = format_meal(meal_number, result["dish"], result["calories"], result["protein"])
     today_text = format_today_totals(totals, goal)
 
     await message.answer(f"{meal_text}\n{today_text}", parse_mode="Markdown")
 
+
 @dp.message(lambda m: m.text and not m.text.startswith("/"))
-async def text_meal_handler(message: Message):
+async def text_meal_handler(message: Message) -> None:
     user_id = message.from_user.id
+
     try:
-        result = await estimate_text_meal(message.text)
+        meal = await parse_meal_from_text(message.text)
+        result = await estimate_nutrition_from_canonical(meal)
     except Exception:
-        logger.exception("Text estimation failed")
+        logger.exception("Text meal pipeline failed")
         await message.answer("Sorry, the meal estimation failed.")
         return
 
@@ -107,14 +118,14 @@ async def text_meal_handler(message: Message):
     totals = get_today_totals(user_id)
     goal = get_daily_goal(user_id)
 
-    # UI logic integrated here
-    meal_text = format_meal(meal_number, result['dish'], result['calories'], result['protein'])
+    meal_text = format_meal(meal_number, result["dish"], result["calories"], result["protein"])
     today_text = format_today_totals(totals, goal)
 
     await message.answer(f"{meal_text}\n{today_text}", parse_mode="Markdown")
 
+
 @dp.message(Command("delete"))
-async def delete_meal_handler(message: Message):
+async def delete_meal_handler(message: Message) -> None:
     user_id = message.from_user.id
     parts = message.text.split()
 
@@ -138,11 +149,12 @@ async def delete_meal_handler(message: Message):
 
     await message.answer(
         f"❌ Deleted: **{meal_number}. {meal['dish']}**\n\n{today_text}",
-        parse_mode="Markdown"
+        parse_mode="Markdown",
     )
 
+
 @dp.message(Command("today"))
-async def today_handler(message: Message):
+async def today_handler(message: Message) -> None:
     user_id = message.from_user.id
     meals = get_today_meals(user_id)
     totals = get_today_totals(user_id)
@@ -151,8 +163,9 @@ async def today_handler(message: Message):
     text = format_today_meals(meals, totals, goal)
     await message.answer(text, parse_mode="Markdown")
 
+
 @dp.message(Command("goal"))
-async def goal_handler(message: Message):
+async def goal_handler(message: Message) -> None:
     user_id = message.from_user.id
     parts = message.text.split()
 
@@ -169,10 +182,25 @@ async def goal_handler(message: Message):
     set_daily_goal(user_id, calories, protein)
     await message.answer(format_goal_set(calories, protein), parse_mode="Markdown")
 
-async def main():
+
+@dp.message(Command("help"))
+async def help_handler(message: Message) -> None:
+    await message.answer(
+        "Send a meal photo or type a meal description.\n\n"
+        "Commands:\n"
+        "/today — show today's meals\n"
+        "/delete <number> — delete a meal\n"
+        "/goal <calories> <protein> — set daily goal\n"
+        "/goal — show current goal",
+        parse_mode="Markdown",
+    )
+
+
+async def main() -> None:
     logger.info("Bot starting...")
     await set_commands(bot)
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

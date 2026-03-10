@@ -17,9 +17,9 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
     Estimate calories and protein from a meal photo using structured JSON output.
     Returns a dict like:
     {
-        "dish": "...",
-        "calories": 123,
-        "protein": 12
+        "dish": "2 tuna salad toasts",
+        "calories": 420,
+        "protein": 28
     }
     """
 
@@ -36,6 +36,35 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
 
     caption_text = description or "No description provided"
 
+    prompt = f"""
+Estimate calories and protein of all the food in the photo.
+
+Additional details about the meal: {caption_text}
+
+Return:
+- short dish name
+- total calories in kcal
+- total protein in grams
+
+Rules:
+- Nutrition values must cover all visible food in the image.
+- The dish field must describe the whole plate/meal, not just one piece.
+- If multiple identical pieces are visible, include that quantity in the dish name itself.
+- Use compound dish names when appropriate.
+
+Good examples of dish names:
+- "2 tuna salad toasts"
+- "2 open-faced tuna sandwiches"
+- "3 chicken tacos"
+- "2 slices of pizza"
+
+Bad examples:
+- "sandwich" if two sandwiches are visible
+- "toast" if two toasts are visible
+
+Be realistic and concise.
+""".strip()
+
     try:
         response = await client.responses.create(
             model="gpt-4.1-mini",
@@ -45,24 +74,14 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
                     "content": [
                         {
                             "type": "input_text",
-                            "text": f"""
-Estimate calories and protein.
-
-Additional details about the meal: {caption_text}
-
-Estimate:
-- dish name
-- total calories in kcal
-- total protein in grams
-
-"""
+                            "text": prompt,
                         },
                         {
                             "type": "input_image",
                             "image_url": f"data:image/jpeg;base64,{image_b64}",
-                            "detail": "low"
-                        }
-                    ]
+                            "detail": "low",
+                        },
+                    ],
                 }
             ],
             text={
@@ -74,14 +93,14 @@ Estimate:
                         "properties": {
                             "dish": {"type": "string"},
                             "calories": {"type": "number"},
-                            "protein": {"type": "number"}
+                            "protein": {"type": "number"},
                         },
                         "required": ["dish", "calories", "protein"],
-                        "additionalProperties": False
+                        "additionalProperties": False,
                     },
-                    "strict": True
+                    "strict": True,
                 }
-            }
+            },
         )
     except Exception:
         logger.exception("OpenAI vision request failed")
@@ -94,9 +113,7 @@ Estimate:
         raise
 
     logger.info("Structured output: %s", data)
-
     return data
-
 
 async def estimate_text_meal(description: str) -> dict:
     logger.info("Text estimation: %s", description)

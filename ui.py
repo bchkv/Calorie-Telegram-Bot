@@ -35,18 +35,23 @@ def format_today_totals(totals: dict, goal: dict | None) -> str:
         f"💪 `{format_number(totals['protein']):>5} / {format_number(goal['protein']):<5} ({p_status})`"
     )
 
+
 def format_today_meals(
-    meals: list[dict[str, Any]],
-    totals: dict[str, Any],
-    goal: dict[str, Any] | None,
+        meals: list[dict[str, Any]],
+        totals: dict[str, Any],
+        goal: dict[str, Any] | None,
 ) -> str:
-    """Full list view (Today's Log)."""
+    """Full list view. Uses bold labels for quick scanning without code blocks."""
     if not meals:
         return "Nothing logged yet today."
 
     lines = ["📝 *Today's Log*\n"]
     for i, meal in enumerate(meals, start=1):
-        lines.append(f"{i}. {meal['dish']} ({format_number(meal['calories'])}k / {format_number(meal['protein'])}p)")
+        cal = format_number(meal['calories'])
+        prot = format_number(meal['protein'])
+
+        # Format: 1. apple — 95 kcal, 0.5g protein
+        lines.append(f"{i}. {meal['dish']} — *{cal}* kcal, *{prot}*g protein")
 
     lines.append(format_today_totals(totals, goal))
     return "\n".join(lines)

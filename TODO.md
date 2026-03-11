@@ -8,14 +8,6 @@ Improve the canonical object:
 - Preserve rich visual/text information so important calorie signals are not lost
 - Allow detailed descriptions extracted from images
 
-- [ ] Split meal processing into 3 stages:
-  - [ ] input understanding
-  - [ ] canonical meal parsing
-  - [ ] nutrition estimation
-
-- [ ] Unify all modalities around one shared canonical meal object
-- [ ] Keep the Telegram bot layer thin and route all logic through services
-
 
 ## Pipeline Design
 

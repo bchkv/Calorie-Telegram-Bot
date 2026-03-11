@@ -24,8 +24,16 @@ CANONICAL_MEAL_SCHEMA = {
                     "name": {"type": "string"},
                     "quantity": {"type": "number"},
                     "unit": {"type": "string"},
+                    "estimated_weight_g": {"type": "number"},
+                    "description": {"type": "string"},
                 },
-                "required": ["name", "quantity", "unit"],
+                "required": [
+                    "name",
+                    "quantity",
+                    "unit",
+                    "estimated_weight_g",
+                    "description",
+                ],
                 "additionalProperties": False,
             },
         },
@@ -38,7 +46,7 @@ CANONICAL_MEAL_SCHEMA = {
 
 async def canonicalize_from_text(text: str) -> dict:
     """
-    Convert a raw text meal description into a canonical meal object.
+    Convert a raw text meal description into a richer canonical meal object.
 
     Returns a dict like:
     {
@@ -47,12 +55,16 @@ async def canonicalize_from_text(text: str) -> dict:
             {
                 "name": "tuna sandwich",
                 "quantity": 2,
-                "unit": "pieces"
+                "unit": "pieces",
+                "estimated_weight_g": 300,
+                "description": "2 medium tuna sandwiches on bread"
             },
             {
                 "name": "banana",
                 "quantity": 1,
-                "unit": "piece"
+                "unit": "piece",
+                "estimated_weight_g": 120,
+                "description": "1 medium banana"
             }
         ],
         "notes": ""
@@ -63,7 +75,7 @@ async def canonicalize_from_text(text: str) -> dict:
     logger.info("Text: %s", text)
 
     prompt = f"""
-Convert the following meal description into a canonical meal object.
+Convert the following meal description into a rich canonical meal object.
 
 Meal description:
 {text}
@@ -71,15 +83,30 @@ Meal description:
 Return:
 - summary: short description of the whole meal
 - items: structured list of food items
-- notes: short optional notes
+- notes: extra useful context or uncertainty
+
+For each item return:
+- name
+- quantity
+- unit
+- estimated_weight_g
+- description
 
 Rules:
 - Preserve explicit quantities when given.
 - If quantity is implied, choose a realistic default.
 - Normalize repeated identical items into quantities when appropriate.
-- The summary must describe the whole meal.
+- Estimate rough total weight in grams for each item entry.
+- Preserve calorie-relevant detail in description, such as:
+  - bread type
+  - whether something is fried/toasted/grilled
+  - creamy/oily/heavy/light
+  - sauce, cheese, mayo, nuts, etc.
+  - bowl/plate size when useful
 - Do not estimate calories or protein.
 - Be realistic and concise.
+- Avoid fake precision. Use rough plausible weights.
+- The summary must describe the whole meal.
 
 Good example:
 {{
@@ -88,12 +115,16 @@ Good example:
     {{
       "name": "tuna sandwich",
       "quantity": 2,
-      "unit": "pieces"
+      "unit": "pieces",
+      "estimated_weight_g": 300,
+      "description": "2 medium tuna sandwiches, likely bread with tuna filling"
     }},
     {{
       "name": "banana",
       "quantity": 1,
-      "unit": "piece"
+      "unit": "piece",
+      "estimated_weight_g": 120,
+      "description": "1 medium banana"
     }}
   ],
   "notes": ""
@@ -129,7 +160,7 @@ Good example:
 
 async def canonicalize_from_image(image_path: str, caption: str | None = None) -> dict:
     """
-    Convert a meal photo into a canonical meal object.
+    Convert a meal photo into a richer canonical meal object.
 
     Returns a dict like:
     {
@@ -138,10 +169,12 @@ async def canonicalize_from_image(image_path: str, caption: str | None = None) -
             {
                 "name": "tuna salad toast",
                 "quantity": 2,
-                "unit": "pieces"
+                "unit": "pieces",
+                "estimated_weight_g": 180,
+                "description": "2 open-faced toasted white bread pieces with tuna salad topping"
             }
         ],
-        "notes": "open-faced, toasted bread"
+        "notes": "looks fairly dense, tuna mixture may include mayo"
     }
     """
 
@@ -159,22 +192,37 @@ async def canonicalize_from_image(image_path: str, caption: str | None = None) -
     caption_text = caption or "No caption provided"
 
     prompt = f"""
-Analyze the meal photo and return a canonical meal object.
+Analyze the meal photo and return a rich canonical meal object.
 
 Additional details from the user: {caption_text}
 
 Return:
 - summary: short description of the whole meal
 - items: structured list of visible food items
-- notes: short optional notes
+- notes: extra useful context or uncertainty
+
+For each item return:
+- name
+- quantity
+- unit
+- estimated_weight_g
+- description
 
 Rules:
 - Describe all visible food in the image.
 - If multiple identical items are visible, include the correct quantity.
+- Estimate rough total weight in grams for each item entry.
+- Preserve calorie-relevant visual detail in description, such as:
+  - thick/thin bread
+  - creamy/oily/heavy/light appearance
+  - visible sauces, mayo, cheese, butter, nuts, chocolate, etc.
+  - fried/toasted/grilled/raw appearance
+  - portion size cues
 - The summary must describe the whole meal, not just one item.
 - Do not estimate calories or protein.
 - Be realistic and concise.
 - If an exact ingredient is uncertain, use the most likely plain description.
+- Avoid fake precision. Use rough plausible weights.
 
 Good example:
 {{
@@ -183,10 +231,12 @@ Good example:
     {{
       "name": "tuna salad toast",
       "quantity": 2,
-      "unit": "pieces"
+      "unit": "pieces",
+      "estimated_weight_g": 180,
+      "description": "2 open-faced toasted bread pieces with tuna salad topping"
     }}
   ],
-  "notes": "open-faced, toasted bread"
+  "notes": "open-faced, looks moderately dense"
 }}
 """.strip()
 

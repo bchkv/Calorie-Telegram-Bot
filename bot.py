@@ -17,10 +17,9 @@ from db import (
     get_today_totals,
     set_daily_goal,
 )
-from meal_parser import parse_meal_from_text
+from meal_canonicalizer import canonicalize_from_image, canonicalize_from_text
 from nutrition_estimation import estimate_nutrition_from_canonical
 from ui import format_goal, format_goal_set, format_meal, format_today_meals, format_today_totals
-from vision import describe_meal_from_image
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +68,9 @@ async def start_handler(message: Message) -> None:
 
 @dp.message(lambda message: message.photo)
 async def photo_handler(message: Message) -> None:
+    if not message.from_user:
+        return
+
     user_id = message.from_user.id
     photo = message.photo[-1]
     file_path = TEMP_DIR / f"{photo.file_id}.jpg"
@@ -77,7 +79,7 @@ async def photo_handler(message: Message) -> None:
         file = await bot.get_file(photo.file_id)
         await bot.download_file(file.file_path, destination=file_path)
 
-        meal = await describe_meal_from_image(str(file_path), message.caption)
+        meal = await canonicalize_from_image(str(file_path), message.caption)
         result = await estimate_nutrition_from_canonical(meal)
 
     except Exception:
@@ -102,10 +104,13 @@ async def photo_handler(message: Message) -> None:
 
 @dp.message(lambda m: m.text and not m.text.startswith("/"))
 async def text_meal_handler(message: Message) -> None:
+    if not message.from_user or not message.text:
+        return
+
     user_id = message.from_user.id
 
     try:
-        meal = await parse_meal_from_text(message.text)
+        meal = await canonicalize_from_text(message.text)
         result = await estimate_nutrition_from_canonical(meal)
     except Exception:
         logger.exception("Text meal pipeline failed")
@@ -126,6 +131,9 @@ async def text_meal_handler(message: Message) -> None:
 
 @dp.message(Command("delete"))
 async def delete_meal_handler(message: Message) -> None:
+    if not message.from_user or not message.text:
+        return
+
     user_id = message.from_user.id
     parts = message.text.split()
 
@@ -155,6 +163,9 @@ async def delete_meal_handler(message: Message) -> None:
 
 @dp.message(Command("today"))
 async def today_handler(message: Message) -> None:
+    if not message.from_user:
+        return
+
     user_id = message.from_user.id
     meals = get_today_meals(user_id)
     totals = get_today_totals(user_id)
@@ -166,6 +177,9 @@ async def today_handler(message: Message) -> None:
 
 @dp.message(Command("goal"))
 async def goal_handler(message: Message) -> None:
+    if not message.from_user or not message.text:
+        return
+
     user_id = message.from_user.id
     parts = message.text.split()
 

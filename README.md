@@ -7,7 +7,7 @@ The bot now uses a multi-step meal pipeline instead of estimating everything in 
 There are two main input paths right now:
 
 - **Text input** -> canonical meal parsing -> nutrition estimation
-- **Image input** -> visual meal description -> nutrition estimation
+- **Image input** -> image canonicalization -> nutrition estimation
 
 Both paths converge into the same shared intermediate format: a **canonical meal object**.
 
@@ -30,18 +30,19 @@ The bot should stay thin: it coordinates the pipeline but does not contain meal 
 
 ---
 
-### `vision.py`
+### `meal_canonicalizer.py`
 
-Responsible for **image understanding**.
+Responsible for converting raw input into a **canonical meal object**.
 
-Main function:
-- `describe_meal_from_image(image_path, caption=None)`
+Main functions:
+- `canonicalize_from_text(text)`
+- `canonicalize_from_image(image_path, caption=None)`
 
-It takes:
-- a saved image file path
-- an optional user caption
+It handles both:
+- raw user text meal descriptions
+- meal photos with an optional caption
 
-It returns a **canonical meal object** describing what is visible in the image.
+Both functions return the same internal format.
 
 Example output:
 
@@ -59,28 +60,7 @@ Example output:
 }
 ```
 
-Important: `vision.py` does **not** estimate calories or protein.
-
----
-
-### `meal_parser.py`
-
-Responsible for **text meal parsing**.
-
-Main function:
-- `parse_meal_from_text(text)`
-
-It takes raw user text such as:
-
-```text
-2 tuna sandwiches and a banana
-```
-
-and converts it into the same canonical meal object format used by the image pipeline.
-
-This keeps text and image inputs consistent internally.
-
-Important: `meal_parser.py` does **not** estimate calories or protein.
+Important: `meal_canonicalizer.py` does **not** estimate calories or protein.
 
 ---
 
@@ -143,7 +123,7 @@ This keeps presentation logic separate from bot handlers and pipeline logic.
 ### Text input flow
 
 1. User sends a text message describing a meal
-2. `bot.py` calls `parse_meal_from_text()` from `meal_parser.py`
+2. `bot.py` calls `canonicalize_from_text()` from `meal_canonicalizer.py`
 3. The result is a canonical meal object
 4. `bot.py` sends that object to `estimate_nutrition_from_canonical()` in `nutrition_estimation.py`
 5. Final nutrition values are saved via `db.py`
@@ -155,7 +135,7 @@ This keeps presentation logic separate from bot handlers and pipeline logic.
 
 1. User sends a meal photo
 2. `bot.py` downloads the image into `temp/`
-3. `bot.py` calls `describe_meal_from_image()` from `vision.py`
+3. `bot.py` calls `canonicalize_from_image()` from `meal_canonicalizer.py`
 4. The result is a canonical meal object
 5. `bot.py` sends that object to `estimate_nutrition_from_canonical()` in `nutrition_estimation.py`
 6. Final nutrition values are saved via `db.py`

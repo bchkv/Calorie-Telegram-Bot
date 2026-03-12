@@ -144,30 +144,6 @@ This keeps presentation logic separate from bot handlers and pipeline logic.
 
 ---
 
-## Why this architecture is better
-
-Previously, the bot tried to do everything in one step:
-- detect the meal
-- count items
-- infer ingredients
-- estimate calories and protein
-
-That made the output more brittle and harder to debug.
-
-The current architecture is better because it separates:
-
-1. **input understanding**
-2. **canonical meal representation**
-3. **nutrition estimation**
-
-Benefits:
-- easier debugging
-- more consistent handling of text and images
-- easier future support for audio input
-- better separation of responsibilities across files
-
----
-
 ## Planned extension: audio
 
 The next logical step is:

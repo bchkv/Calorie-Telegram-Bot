@@ -1,10 +1,12 @@
 import sqlite3
 from datetime import datetime, timedelta
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = "meals.db"
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "meals.db"
 DEFAULT_DAY_START_HOUR = 5
 
 
@@ -30,7 +32,6 @@ def init_db():
         )
         """)
 
-        # add new columns if they don't exist
         try:
             cursor.execute("ALTER TABLE user_settings ADD COLUMN calorie_goal INTEGER")
         except sqlite3.OperationalError:
@@ -40,6 +41,9 @@ def init_db():
             cursor.execute("ALTER TABLE user_settings ADD COLUMN protein_goal INTEGER")
         except sqlite3.OperationalError:
             pass
+
+    logger.info("Using database at: %s", DB_PATH)
+
 
 def get_day_start_hour(user_id: int) -> int:
     try:
@@ -66,7 +70,6 @@ def get_day_start_hour(user_id: int) -> int:
 def get_day_window(user_id: int):
     """Return start and end timestamps for the user's nutrition day."""
     hour = get_day_start_hour(user_id)
-
     now = datetime.now()
 
     start = now.replace(hour=hour, minute=0, second=0, microsecond=0)
@@ -226,7 +229,6 @@ def set_daily_goal(user_id: int, calories: int, protein: int):
 
 
 def get_daily_goal(user_id: int):
-
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
 
@@ -250,6 +252,4 @@ def get_daily_goal(user_id: int):
         }
 
 
-
-# initialize DB when module loads
 init_db()

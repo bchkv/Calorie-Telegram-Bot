@@ -7,25 +7,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from meal_canonicalizer import canonicalize_from_image
-from nutrition_estimation import estimate_nutrition_from_canonical
+from vision import estimate_meal
 
 
-BENCHMARK_LABELS_CSV = Path(
-    "/Volumes/T7/Library/nutrition5k_benchmark_dataset_builder/data/labels/labels.csv"
+BENCHMARK_DATASET_ROOT = Path(
+    "/Volumes/T7/Library/nutrition5k_benchmark_dataset_builder"
 )
-BENCHMARK_IMAGES_DIR = Path(
-    "/Volumes/T7/Library/nutrition5k_benchmark_dataset_builder/data/processed/frames_selected"
-)
-RESULTS_CSV = Path(
-    "/Volumes/T7/Library/nutrition5k_benchmark_dataset_builder/data/results/benchmark_results.csv"
-)
+BENCHMARK_LABELS_CSV = BENCHMARK_DATASET_ROOT / "data/labels/labels.csv"
+RESULTS_CSV = PROJECT_ROOT / "benchmark/results/benchmark_results.csv"
 
-MAX_IMAGES = 20  # None = process all images
-
-DISH_ID_COLUMN = "dish_id"
-CALORIES_GT_COLUMN = "calories"
-PROTEIN_GT_COLUMN = "protein"
+MAX_IMAGES = 20  # None = process all rows
 
 
 def safe_float(value):
@@ -37,40 +28,37 @@ def safe_float(value):
         return None
 
 
-def read_labels_as_dict(csv_path: Path) -> dict[str, dict]:
-    labels_by_dish_id = {}
+def read_rows(csv_path: Path) -> list[dict]:
+    rows = []
 
     with csv_path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
 
         for row in reader:
-            dish_id = str(row[DISH_ID_COLUMN]).strip()
-            labels_by_dish_id[dish_id] = {
-                "calories_gt": safe_float(row[CALORIES_GT_COLUMN]),
-                "protein_gt": safe_float(row[PROTEIN_GT_COLUMN]),
-            }
-
-    return labels_by_dish_id
-
-
-def get_image_paths(images_dir: Path) -> list[Path]:
-    image_paths = sorted(images_dir.glob("*.png"))
+            rows.append(
+                {
+                    "dish_id": str(row["dish_id"]).strip(),
+                    "camera": str(row["camera"]).strip(),
+                    "image_path": str(row["image_path"]).strip(),
+                    "calories_gt": safe_float(row["calories"]),
+                    "protein_gt": safe_float(row["protein_g"]),
+                }
+            )
 
     if MAX_IMAGES is not None:
-        image_paths = image_paths[:MAX_IMAGES]
+        rows = rows[:MAX_IMAGES]
 
-    return image_paths
+    return rows
 
 
 def abs_error(pred: float, gt: float) -> float:
     return abs(pred - gt)
 
 
-def extract_predictions(nutrition_result: dict) -> dict[str, float | None]:
-    return {
-        "calories_pred": safe_float(nutrition_result.get("calories")),
-        "protein_pred": safe_float(nutrition_result.get("protein")),
-    }
+def pct_error(pred: float, gt: float) -> float | None:
+    if gt == 0:
+        return None
+    return abs(pred - gt) / gt * 100
 
 
 def write_results(results: list[dict], output_path: Path) -> None:
@@ -78,9 +66,11 @@ def write_results(results: list[dict], output_path: Path) -> None:
 
     fieldnames = [
         "dish_id",
+        "camera",
         "image_path",
         "calories_gt",
         "protein_gt",
+        "dish_pred",
         "calories_pred",
         "protein_pred",
         "calorie_abs_error",
@@ -89,54 +79,114 @@ def write_results(results: list[dict], output_path: Path) -> None:
         "error_message",
     ]
 
+    valid_rows = [row for row in results if row["status"] == "ok"]
+
+    calorie_abs_errors = [
+        row["calorie_abs_error"]
+        for row in valid_rows
+        if row["calorie_abs_error"] is not None
+    ]
+    protein_abs_errors = [
+        row["protein_abs_error"]
+        for row in valid_rows
+        if row["protein_abs_error"] is not None
+    ]
+
+    calorie_pct_errors = []
+    protein_pct_errors = []
+
+    for row in valid_rows:
+        if row["calories_pred"] is not None and row["calories_gt"] is not None:
+            err = pct_error(row["calories_pred"], row["calories_gt"])
+            if err is not None:
+                calorie_pct_errors.append(err)
+
+        if row["protein_pred"] is not None and row["protein_gt"] is not None:
+            err = pct_error(row["protein_pred"], row["protein_gt"])
+            if err is not None:
+                protein_pct_errors.append(err)
+
+    summary_row = {
+        "dish_id": "SUMMARY",
+        "camera": "",
+        "image_path": "",
+        "calories_gt": "",
+        "protein_gt": "",
+        "dish_pred": "",
+        "calories_pred": "",
+        "protein_pred": "",
+        "calorie_abs_error": (
+            sum(calorie_abs_errors) / len(calorie_abs_errors)
+            if calorie_abs_errors
+            else ""
+        ),
+        "protein_abs_error": (
+            sum(protein_abs_errors) / len(protein_abs_errors)
+            if protein_abs_errors
+            else ""
+        ),
+        "status": (
+            f"calorie_pct_error={sum(calorie_pct_errors) / len(calorie_pct_errors):.2f}%; "
+            f"protein_pct_error={sum(protein_pct_errors) / len(protein_pct_errors):.2f}%"
+            if calorie_pct_errors and protein_pct_errors
+            else ""
+        ),
+        "error_message": "",
+    }
+
     with output_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(results)
+        writer.writerow(summary_row)
 
 
 async def run() -> None:
-    labels_by_dish_id = read_labels_as_dict(BENCHMARK_LABELS_CSV)
-    image_paths = get_image_paths(BENCHMARK_IMAGES_DIR)
+    rows = read_rows(BENCHMARK_LABELS_CSV)
 
-    print(f"Labels loaded: {len(labels_by_dish_id)}")
-    print(f"Images selected for this run: {len(image_paths)}")
+    print(f"Rows selected for this run: {len(rows)}")
     print(f"Results file: {RESULTS_CSV}")
 
     results = []
 
-    for idx, image_path in enumerate(image_paths, start=1):
-        dish_id = image_path.stem
-        print(f"[{idx}/{len(image_paths)}] Running {dish_id} ...")
+    for idx, row in enumerate(rows, start=1):
+        dish_id = row["dish_id"]
+        camera = row["camera"]
+        image_path = BENCHMARK_DATASET_ROOT / row["image_path"]
+        calories_gt = row["calories_gt"]
+        protein_gt = row["protein_gt"]
 
-        gt_row = labels_by_dish_id.get(dish_id)
-        if gt_row is None:
+        print(f"[{idx}/{len(rows)}] Running {dish_id}_{camera} ...")
+        print(f"Image: {image_path}")
+
+        if not image_path.exists():
             results.append(
                 {
                     "dish_id": dish_id,
+                    "camera": camera,
                     "image_path": str(image_path),
-                    "calories_gt": None,
-                    "protein_gt": None,
+                    "calories_gt": calories_gt,
+                    "protein_gt": protein_gt,
+                    "dish_pred": None,
                     "calories_pred": None,
                     "protein_pred": None,
                     "calorie_abs_error": None,
                     "protein_abs_error": None,
                     "status": "failed",
-                    "error_message": "dish_id not found in labels.csv",
+                    "error_message": "image file not found",
                 }
             )
             continue
-
-        calories_gt = gt_row["calories_gt"]
-        protein_gt = gt_row["protein_gt"]
 
         if calories_gt is None or protein_gt is None:
             results.append(
                 {
                     "dish_id": dish_id,
+                    "camera": camera,
                     "image_path": str(image_path),
                     "calories_gt": calories_gt,
                     "protein_gt": protein_gt,
+                    "dish_pred": None,
                     "calories_pred": None,
                     "protein_pred": None,
                     "calorie_abs_error": None,
@@ -148,20 +198,21 @@ async def run() -> None:
             continue
 
         try:
-            canonical = await canonicalize_from_image(str(image_path))
-            nutrition_result = await estimate_nutrition_from_canonical(canonical)
+            result = await estimate_meal(str(image_path))
 
-            preds = extract_predictions(nutrition_result)
-            calories_pred = preds["calories_pred"]
-            protein_pred = preds["protein_pred"]
+            dish_pred = result.get("dish")
+            calories_pred = safe_float(result.get("calories"))
+            protein_pred = safe_float(result.get("protein"))
 
             if calories_pred is None or protein_pred is None:
                 results.append(
                     {
                         "dish_id": dish_id,
+                        "camera": camera,
                         "image_path": str(image_path),
                         "calories_gt": calories_gt,
                         "protein_gt": protein_gt,
+                        "dish_pred": dish_pred,
                         "calories_pred": calories_pred,
                         "protein_pred": protein_pred,
                         "calorie_abs_error": None,
@@ -175,9 +226,11 @@ async def run() -> None:
             results.append(
                 {
                     "dish_id": dish_id,
+                    "camera": camera,
                     "image_path": str(image_path),
                     "calories_gt": calories_gt,
                     "protein_gt": protein_gt,
+                    "dish_pred": dish_pred,
                     "calories_pred": calories_pred,
                     "protein_pred": protein_pred,
                     "calorie_abs_error": abs_error(calories_pred, calories_gt),
@@ -191,9 +244,11 @@ async def run() -> None:
             results.append(
                 {
                     "dish_id": dish_id,
+                    "camera": camera,
                     "image_path": str(image_path),
                     "calories_gt": calories_gt,
                     "protein_gt": protein_gt,
+                    "dish_pred": None,
                     "calories_pred": None,
                     "protein_pred": None,
                     "calorie_abs_error": None,
@@ -205,3 +260,7 @@ async def run() -> None:
 
     write_results(results, RESULTS_CSV)
     print("Done.")
+
+
+if __name__ == "__main__":
+    asyncio.run(run())

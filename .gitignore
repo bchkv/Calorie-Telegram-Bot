@@ -5,3 +5,4 @@ __pycache__/
 .idea/
 temp/
 *.log
+/benchmark/results/benchmark_results.csv

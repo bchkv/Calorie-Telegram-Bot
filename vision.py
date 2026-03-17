@@ -12,7 +12,16 @@ from openai import AsyncOpenAI
 # =========================
 
 VISION_PROMPT_TEMPLATE = """
-How many calories and protein are there?
+Estimate the total calories and protein for the entire visible meal.
+
+Consider:
+- portion sizes
+- sauces, oils, dressings
+- beverages
+- desserts
+- multiple separate food items
+
+Do not underestimate portion sizes, ESPECIALLY for large meals.
 
 Additional details: {caption_text}
 
@@ -105,7 +114,7 @@ async def estimate_meal(image_path: str, description: str | None = None) -> dict
                         {
                             "type": "input_image",
                             "image_url": f"data:image/jpeg;base64,{image_b64}",
-                            "detail": "high",
+                            "detail": "low",
                         },
                     ],
                 }

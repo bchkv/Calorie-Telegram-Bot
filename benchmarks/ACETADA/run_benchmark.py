@@ -20,7 +20,7 @@ from vision import estimate_meal
 # =========================
 
 DATASET_ROOT = Path("/Users/bochkovoy/ACETADA-Dataset")
-DATASET_CSV = DATASET_ROOT / "ACETADA-HF-dataset.csv"
+DATASET_CSV = DATASET_ROOT / "derived" / "ACETADA-HF-dataset.enriched.csv"
 
 BENCHMARK_DIR = Path(__file__).resolve().parent
 RESULTS_CSV = BENCHMARK_DIR / "results.csv"
@@ -31,9 +31,10 @@ SUMMARY_JSON = BENCHMARK_DIR / "summary.json"
 # SETTINGS
 # =========================
 
-MAX_ROWS = 50
+MAX_ROWS = 10
 RANDOM_SAMPLE = True
-RANDOM_SEED = 333
+RANDOM_SEED = 43124534
+MIN_CONSUMED_RATIO = 0.95
 
 
 FIELDNAMES = [
@@ -42,8 +43,8 @@ FIELDNAMES = [
     "participant_id",
     "meal_type",
     "food_item_count",
-    "total_consumed_g",
-    "total_portion_g",
+    "cleaned_total_consumed_g",
+    "cleaned_total_portion_g",
     "consumed_ratio",
     "groundtruth_items",
     "groundtruth_item_count_check",
@@ -92,6 +93,23 @@ def load_dataset_rows() -> list[dict]:
         return list(csv.DictReader(f))
 
 
+def safe_float(value) -> float | None:
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def safe_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() == "true"
+
+
 def maybe_sample_rows(rows: list[dict]) -> list[dict]:
     rows = rows.copy()
 
@@ -105,11 +123,24 @@ def maybe_sample_rows(rows: list[dict]) -> list[dict]:
     return rows
 
 
-def safe_float(value) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+def filter_rows(rows: list[dict]) -> list[dict]:
+    filtered = []
+
+    for row in rows:
+        consumed_ratio = safe_float(row.get("consumed_ratio"))
+        consumed_ratio_valid = safe_bool(row.get("consumed_ratio_valid"))
+        invalid_item_count = safe_float(row.get("invalid_item_count"))
+
+        if not consumed_ratio_valid:
+            continue
+        if consumed_ratio is None or consumed_ratio <= MIN_CONSUMED_RATIO:
+            continue
+        if invalid_item_count is None or invalid_item_count != 0:
+            continue
+
+        filtered.append(row)
+
+    return filtered
 
 
 def round_or_none(value: float | None, ndigits: int = 3) -> float | None:
@@ -118,26 +149,20 @@ def round_or_none(value: float | None, ndigits: int = 3) -> float | None:
     return round(value, ndigits)
 
 
-def compute_ratio(numerator: float | None, denominator: float | None) -> float | None:
-    if numerator is None or denominator is None or denominator == 0:
-        return None
-    return numerator / denominator
-
-
 def build_before_image_path(row: dict) -> Path:
     return DATASET_ROOT / row["before_filepath"]
 
 
 def get_ground_truth(row: dict) -> tuple[float | None, float | None]:
-    true_calories = safe_float(row.get("total_kcal"))
-    true_protein = safe_float(row.get("total_protein_g"))
+    true_calories = safe_float(row.get("cleaned_total_kcal"))
+    true_protein = safe_float(row.get("cleaned_total_protein_g"))
     return true_calories, true_protein
 
 
 def get_portion_totals(row: dict) -> tuple[float | None, float | None, float | None]:
-    total_consumed_g = safe_float(row.get("total_consumed_g"))
-    total_portion_g = safe_float(row.get("total_portion_g"))
-    consumed_ratio = compute_ratio(total_consumed_g, total_portion_g)
+    total_consumed_g = safe_float(row.get("cleaned_total_consumed_g"))
+    total_portion_g = safe_float(row.get("cleaned_total_portion_g"))
+    consumed_ratio = safe_float(row.get("consumed_ratio"))
     return total_consumed_g, total_portion_g, consumed_ratio
 
 
@@ -216,6 +241,7 @@ def build_summary(
         "max_rows": MAX_ROWS,
         "random_sample": RANDOM_SAMPLE,
         "random_seed": RANDOM_SEED,
+        "min_consumed_ratio": MIN_CONSUMED_RATIO,
         "rows_total": total_rows,
         "rows_ok": count_ok,
         "rows_failed": count_failed,
@@ -256,8 +282,8 @@ async def benchmark_one_meal(row: dict, meal_index: int) -> dict:
         "participant_id": participant_id,
         "meal_type": meal_type,
         "food_item_count": food_item_count,
-        "total_consumed_g": round_or_none(total_consumed_g),
-        "total_portion_g": round_or_none(total_portion_g),
+        "cleaned_total_consumed_g": round_or_none(total_consumed_g),
+        "cleaned_total_portion_g": round_or_none(total_portion_g),
         "consumed_ratio": round_or_none(consumed_ratio),
         "groundtruth_items": groundtruth_items_str,
         "groundtruth_item_count_check": len(groundtruth_items),
@@ -319,6 +345,7 @@ async def main() -> None:
     ensure_output_files_ready()
 
     rows = load_dataset_rows()
+    rows = filter_rows(rows)
     rows = maybe_sample_rows(rows)
 
     total_rows = len(rows)

@@ -31,9 +31,9 @@ SUMMARY_JSON = BENCHMARK_DIR / "summary.json"
 # SETTINGS
 # =========================
 
-MAX_ROWS = 10
+MAX_ROWS = 150
 RANDOM_SAMPLE = True
-RANDOM_SEED = 43124534
+RANDOM_SEED = 431248142135
 MIN_CONSUMED_RATIO = 0.95
 
 
@@ -350,6 +350,8 @@ async def main() -> None:
 
     total_rows = len(rows)
 
+    print(f"Filtered rows selected for benchmark: {total_rows}")
+
     sum_abs_calorie_error = 0.0
     sum_abs_protein_error = 0.0
     count_calorie = 0
@@ -394,6 +396,14 @@ async def main() -> None:
 
         append_result(result)
 
+        print(
+            f"[{meal_index}/{total_rows}] "
+            f"{result['status']} | "
+            f"{Path(result['image_path']).name} | "
+            f"kcal_err={result['calorie_error']} | "
+            f"protein_err={result['protein_error']}"
+        )
+
     summary = build_summary(
         total_rows=total_rows,
         count_ok=count_ok,
@@ -408,6 +418,10 @@ async def main() -> None:
         total_pred_calories=total_pred_calories,
     )
     write_summary(summary)
+
+    print("Done.")
+    print(f"Results: {RESULTS_CSV}")
+    print(f"Summary: {SUMMARY_JSON}")
 
 
 if __name__ == "__main__":

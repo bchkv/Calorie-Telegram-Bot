@@ -21,7 +21,7 @@ Consider:
 - desserts
 - multiple separate food items
 
-Do not underestimate portion sizes, ESPECIALLY for large meals.
+Do not underestimate portion sizes, ESPECIALLY for large meals and complex meals.
 
 Additional details: {caption_text}
 

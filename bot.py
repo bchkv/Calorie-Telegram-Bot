@@ -9,10 +9,27 @@ from aiogram.types import Message, BotCommand
 from dotenv import load_dotenv
 
 from vision import estimate_meal, estimate_text_meal
-from db import (add_meal, get_today_totals, get_today_meal_count, get_today_meals, delete_meal, set_daily_goal,
-                get_daily_goal)
+from db import (
+    add_meal,
+    get_today_totals,
+    get_today_meal_count,
+    get_today_meals,
+    delete_meal,
+    set_daily_goal,
+    get_daily_goal,
+    get_daily_history,
+    get_average_stats,
+    get_calorie_extremes,
+)
 # import format_today_list as an alias for format_today_meals
-from ui import format_meal, format_today_totals, format_today_meals, format_goal, format_goal_set
+from ui import (
+    format_meal,
+    format_today_totals,
+    format_today_meals,
+    format_goal,
+    format_goal_set,
+    format_stats,
+)
 
 from aiogram.types import ErrorEvent
 
@@ -49,6 +66,7 @@ async def set_commands(bot: Bot):
         BotCommand(command="delete", description="Delete a meal: /delete <number>"),
         BotCommand(command="goal", description="Set daily calorie & protein goal"),
         BotCommand(command="help", description="How to use the bot"),
+        BotCommand(command="stats", description="Show long-term stats"),
     ]
     await bot.set_my_commands(commands)
 
@@ -168,6 +186,17 @@ async def goal_handler(message: Message):
     calories, protein = int(parts[1]), int(parts[2])
     set_daily_goal(user_id, calories, protein)
     await message.answer(format_goal_set(calories, protein), parse_mode="Markdown")
+
+@dp.message(Command("stats"))
+async def stats_handler(message: Message):
+    user_id = message.from_user.id
+
+    avg_7 = get_average_stats(user_id, days=7)
+    history = get_daily_history(user_id, limit=7)
+    extremes = get_calorie_extremes(user_id)
+
+    text = format_stats(avg_7, history, extremes)
+    await message.answer(text, parse_mode="Markdown")
 
 async def main():
     logger.info("Bot starting...")

@@ -73,3 +73,44 @@ def format_goal_set(calories: int, protein: int) -> str:
         f"🔥 {calories} kcal\n"
         f"💪 {protein} g protein"
     )
+
+def format_stats(
+    avg_stats: dict[str, Any],
+    history: list[dict[str, Any]],
+    extremes: dict[str, Any],
+) -> str:
+    lines = ["📊 *Long-term Stats*\n"]
+
+    lines.append(
+        f"Last 7 logged days avg:\n"
+        f"🔥 *{format_number(avg_stats['avg_calories'])}* kcal\n"
+        f"💪 *{format_number(avg_stats['avg_protein'])}* g protein\n"
+        f"🍽️ *{format_number(avg_stats['avg_meals'])}* meals"
+    )
+
+    highest = extremes.get("highest")
+    lowest = extremes.get("lowest")
+
+    if highest or lowest:
+        lines.append("\n*Extremes*")
+        if highest:
+            lines.append(
+                f"⬆️ Highest: *{highest['day']}* — *{format_number(highest['calories'])}* kcal"
+            )
+        if lowest:
+            lines.append(
+                f"⬇️ Lowest: *{lowest['day']}* — *{format_number(lowest['calories'])}* kcal"
+            )
+
+    if history:
+        lines.append("\n*Last 7 days*")
+        for day in history:
+            lines.append(
+                f"{day['day']}: *{format_number(day['calories'])}* kcal, "
+                f"*{format_number(day['protein'])}* g, "
+                f"{day['meals_count']} meals"
+            )
+    else:
+        lines.append("\nNo history yet.")
+
+    return "\n".join(lines)

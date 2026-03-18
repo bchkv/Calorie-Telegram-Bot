@@ -85,7 +85,6 @@ def format_stats(
         f"Last 7 logged days avg:\n"
         f"🔥 *{format_number(avg_stats['avg_calories'])}* kcal\n"
         f"💪 *{format_number(avg_stats['avg_protein'])}* g protein\n"
-        f"🍽️ *{format_number(avg_stats['avg_meals'])}* meals"
     )
 
     highest = extremes.get("highest")

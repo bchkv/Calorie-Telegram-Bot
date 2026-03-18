@@ -131,7 +131,7 @@ def add_meal(
     calories: int,
     protein: int,
     dt: datetime | None = None,
-):
+) -> int:
     try:
         if dt is None:
             dt = datetime.utcnow()
@@ -149,6 +149,8 @@ def add_meal(
                 (user_id, dish, calories, protein, dt.isoformat(), nutrition_day),
             )
 
+            meal_id = cursor.lastrowid
+
         logger.info(
             "Meal stored for user %s: %s (%s kcal, %s g protein)",
             user_id,
@@ -156,6 +158,8 @@ def add_meal(
             calories,
             protein,
         )
+
+        return meal_id
 
     except Exception:
         logger.exception("Failed to insert meal into database")

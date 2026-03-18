@@ -5,7 +5,14 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, BotCommand, ErrorEvent
+from aiogram.types import (
+    Message,
+    BotCommand,
+    ErrorEvent,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from dotenv import load_dotenv
 
@@ -17,6 +24,7 @@ from db import (
     get_totals_for_day,
     get_meal_count_for_day,
     get_nutrition_day,
+    get_meal_by_id,
     delete_meal,
     set_daily_goal,
     get_daily_goal,
@@ -58,6 +66,17 @@ TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
 
 
+def meal_actions_keyboard(meal_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📋 Today", callback_data="show_today"),
+                InlineKeyboardButton(text="🗑 Delete", callback_data=f"delete_meal:{meal_id}"),
+            ]
+        ]
+    )
+
+
 async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="Start the bot"),
@@ -80,7 +99,13 @@ async def save_meal_and_reply(message: Message, result: dict):
     dt = message.date
     nutrition_day = get_nutrition_day(user_id, dt)
 
-    add_meal(user_id, result["dish"], result["calories"], result["protein"], dt)
+    meal_id = add_meal(
+        user_id,
+        result["dish"],
+        result["calories"],
+        result["protein"],
+        dt,
+    )
 
     meal_number = get_meal_count_for_day(user_id, nutrition_day)
     totals = get_totals_for_day(user_id, nutrition_day)
@@ -94,7 +119,11 @@ async def save_meal_and_reply(message: Message, result: dict):
     )
     totals_text = format_today_totals(totals, goal)
 
-    await message.answer(f"{meal_text}\n{totals_text}", parse_mode="Markdown")
+    await message.answer(
+        f"{meal_text}\n{totals_text}",
+        parse_mode="Markdown",
+        reply_markup=meal_actions_keyboard(meal_id),
+    )
 
 
 @dp.message(CommandStart())
@@ -132,6 +161,50 @@ async def text_meal_handler(message: Message):
         return
 
     await save_meal_and_reply(message, result)
+
+
+@dp.callback_query(lambda c: c.data == "show_today")
+async def show_today_callback(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    meals = get_today_meals(user_id)
+    totals = get_today_totals(user_id)
+    goal = get_daily_goal(user_id)
+
+    text = format_today_meals(meals, totals, goal)
+    await callback.message.answer(text, parse_mode="Markdown")
+    await callback.answer()
+
+
+@dp.callback_query(lambda c: c.data and c.data.startswith("delete_meal:"))
+async def delete_meal_callback(callback: CallbackQuery):
+    user_id = callback.from_user.id
+
+    try:
+        meal_id = int(callback.data.split(":")[1])
+    except (IndexError, ValueError):
+        await callback.answer("Invalid delete action.", show_alert=True)
+        return
+
+    meal = get_meal_by_id(meal_id)
+    if not meal:
+        await callback.answer("Meal already deleted.", show_alert=True)
+        return
+
+    if meal["user_id"] != user_id:
+        await callback.answer("You cannot delete this meal.", show_alert=True)
+        return
+
+    delete_meal(meal_id)
+
+    totals = get_totals_for_day(user_id, meal["nutrition_day"])
+    goal = get_daily_goal(user_id)
+    totals_text = format_today_totals(totals, goal)
+
+    await callback.message.edit_text(
+        f"❌ Deleted: *{meal['dish']}*\n\n{totals_text}",
+        parse_mode="Markdown",
+    )
+    await callback.answer("Meal deleted.")
 
 
 @dp.message(Command("delete"))

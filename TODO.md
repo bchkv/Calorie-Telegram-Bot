@@ -1,6 +1,5 @@
 # Calorie Telegram Bot -- MVP TODO
 
-- store long-term stat
 - add delete button after each added meal
 - meal added date should match when user sent the message (so if the bot has been offline it doesn't disrupt the log)
 - add export all data functionality so user can analyze it himself

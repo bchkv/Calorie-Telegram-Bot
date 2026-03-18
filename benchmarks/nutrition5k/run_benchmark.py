@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASET_ROOT = Path("/Volumes/T7/Library/nutrition5k_benchmark_dataset_builder")
 LABELS_CSV = DATASET_ROOT / "data/labels/labels.csv"
 
-BENCHMARK_DIR = PROJECT_ROOT / "benchmarks/nutrition5k"
+BENCHMARK_DIR = PROJECT_ROOT / "nutrition5k"
 RESULTS_CSV = BENCHMARK_DIR / "results.csv"
 SUMMARY_JSON = BENCHMARK_DIR / "summary.json"
 

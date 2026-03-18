@@ -7,13 +7,13 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "meals.db"
-DEFAULT_DAY_START_HOUR = 5
+DEFAULT_DAY_START_HOUR = 3
 
 
 def get_nutrition_day(user_id: int, dt: datetime | None = None) -> str:
     """Return the logical nutrition day for a datetime, respecting user's day start hour."""
     if dt is None:
-        dt = datetime.now()
+        dt = datetime.utcnow()
 
     hour = get_day_start_hour(user_id)
 
@@ -42,7 +42,7 @@ def backfill_nutrition_days():
 
                 cursor.execute(
                     "UPDATE meals SET nutrition_day = ? WHERE id = ?",
-                    (nutrition_day, meal_id)
+                    (nutrition_day, meal_id),
                 )
 
         logger.info("Nutrition day backfill complete")
@@ -70,7 +70,7 @@ def init_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_settings (
             user_id INTEGER PRIMARY KEY,
-            day_start_hour INTEGER DEFAULT 5
+            day_start_hour INTEGER DEFAULT 3
         )
         """)
 
@@ -110,7 +110,7 @@ def get_day_start_hour(user_id: int) -> int:
 
             cursor.execute(
                 "SELECT day_start_hour FROM user_settings WHERE user_id = ?",
-                (user_id,)
+                (user_id,),
             )
 
             row = cursor.fetchone()
@@ -125,25 +125,18 @@ def get_day_start_hour(user_id: int) -> int:
         return DEFAULT_DAY_START_HOUR
 
 
-def get_day_window(user_id: int):
-    """Return start and end timestamps for the user's current nutrition day."""
-    hour = get_day_start_hour(user_id)
-    now = datetime.now()
-
-    start = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-
-    if now.hour < hour:
-        start = start - timedelta(days=1)
-
-    end = start + timedelta(days=1)
-
-    return start.isoformat(), end.isoformat()
-
-
-def add_meal(user_id: int, dish: str, calories: int, protein: int):
+def add_meal(
+    user_id: int,
+    dish: str,
+    calories: int,
+    protein: int,
+    dt: datetime | None = None,
+):
     try:
-        now = datetime.now()
-        nutrition_day = get_nutrition_day(user_id, now)
+        if dt is None:
+            dt = datetime.utcnow()
+
+        nutrition_day = get_nutrition_day(user_id, dt)
 
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
@@ -153,7 +146,7 @@ def add_meal(user_id: int, dish: str, calories: int, protein: int):
                 INSERT INTO meals (user_id, dish, calories, protein, created_at, nutrition_day)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (user_id, dish, calories, protein, now.isoformat(), nutrition_day)
+                (user_id, dish, calories, protein, dt.isoformat(), nutrition_day),
             )
 
         logger.info(
@@ -172,92 +165,16 @@ def add_meal(user_id: int, dish: str, calories: int, protein: int):
 def get_today_totals(user_id: int):
     try:
         nutrition_day = get_nutrition_day(user_id)
-
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT
-                    COALESCE(SUM(calories), 0),
-                    COALESCE(SUM(protein), 0)
-                FROM meals
-                WHERE user_id = ?
-                AND nutrition_day = ?
-                """,
-                (user_id, nutrition_day)
-            )
-
-            calories, protein = cursor.fetchone()
-
-            return {
-                "calories": calories,
-                "protein": protein
-            }
-
+        return get_totals_for_day(user_id, nutrition_day)
     except Exception:
         logger.exception("Failed to read daily totals for user %s", user_id)
-        raise
-
-
-def get_today_meal_count(user_id: int) -> int:
-    """Return how many meals the user already logged today."""
-    try:
-        nutrition_day = get_nutrition_day(user_id)
-
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT COUNT(*)
-                FROM meals
-                WHERE user_id = ?
-                AND nutrition_day = ?
-                """,
-                (user_id, nutrition_day)
-            )
-
-            count = cursor.fetchone()[0]
-            return count
-
-    except Exception:
-        logger.exception("Failed to count meals for user %s", user_id)
         raise
 
 
 def get_today_meals(user_id: int):
     """Return today's meals ordered by time."""
     nutrition_day = get_nutrition_day(user_id)
-
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT id, dish, calories, protein, created_at, nutrition_day
-            FROM meals
-            WHERE user_id = ?
-            AND nutrition_day = ?
-            ORDER BY created_at ASC
-            """,
-            (user_id, nutrition_day)
-        )
-
-        rows = cursor.fetchall()
-
-        meals = []
-        for row in rows:
-            meals.append({
-                "id": row[0],
-                "dish": row[1],
-                "calories": row[2],
-                "protein": row[3],
-                "created_at": row[4],
-                "nutrition_day": row[5],
-            })
-
-        return meals
+    return get_meals_for_day(user_id, nutrition_day)
 
 
 def get_meals_for_day(user_id: int, nutrition_day: str):
@@ -273,23 +190,22 @@ def get_meals_for_day(user_id: int, nutrition_day: str):
             AND nutrition_day = ?
             ORDER BY created_at ASC
             """,
-            (user_id, nutrition_day)
+            (user_id, nutrition_day),
         )
 
         rows = cursor.fetchall()
 
-        meals = []
-        for row in rows:
-            meals.append({
+        return [
+            {
                 "id": row[0],
                 "dish": row[1],
                 "calories": row[2],
                 "protein": row[3],
                 "created_at": row[4],
                 "nutrition_day": row[5],
-            })
-
-        return meals
+            }
+            for row in rows
+        ]
 
 
 def get_totals_for_day(user_id: int, nutrition_day: str):
@@ -306,15 +222,32 @@ def get_totals_for_day(user_id: int, nutrition_day: str):
             WHERE user_id = ?
             AND nutrition_day = ?
             """,
-            (user_id, nutrition_day)
+            (user_id, nutrition_day),
         )
 
         calories, protein = cursor.fetchone()
 
         return {
             "calories": calories,
-            "protein": protein
+            "protein": protein,
         }
+
+
+def get_meal_count_for_day(user_id: int, nutrition_day: str) -> int:
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM meals
+            WHERE user_id = ?
+            AND nutrition_day = ?
+            """,
+            (user_id, nutrition_day),
+        )
+
+        return cursor.fetchone()[0]
 
 
 def get_meal_by_id(meal_id: int):
@@ -327,7 +260,7 @@ def get_meal_by_id(meal_id: int):
             FROM meals
             WHERE id = ?
             """,
-            (meal_id,)
+            (meal_id,),
         )
 
         row = cursor.fetchone()
@@ -352,7 +285,7 @@ def delete_meal(meal_id: int):
 
         cursor.execute(
             "DELETE FROM meals WHERE id = ?",
-            (meal_id,)
+            (meal_id,),
         )
 
 
@@ -369,7 +302,7 @@ def set_daily_goal(user_id: int, calories: int, protein: int):
                 calorie_goal = excluded.calorie_goal,
                 protein_goal = excluded.protein_goal
             """,
-            (user_id, calories, protein)
+            (user_id, calories, protein),
         )
 
 
@@ -383,7 +316,7 @@ def get_daily_goal(user_id: int):
             FROM user_settings
             WHERE user_id = ?
             """,
-            (user_id,)
+            (user_id,),
         )
 
         row = cursor.fetchone()
@@ -393,7 +326,7 @@ def get_daily_goal(user_id: int):
 
         return {
             "calories": row[0],
-            "protein": row[1]
+            "protein": row[1],
         }
 
 
@@ -416,7 +349,7 @@ def get_daily_history(user_id: int, limit: int = 30):
             ORDER BY nutrition_day DESC
             LIMIT ?
             """,
-            (user_id, limit)
+            (user_id, limit),
         )
 
         rows = cursor.fetchall()
@@ -456,7 +389,7 @@ def get_average_stats(user_id: int, days: int = 7):
                 LIMIT ?
             )
             """,
-            (user_id, days)
+            (user_id, days),
         )
 
         row = cursor.fetchone()
@@ -483,7 +416,7 @@ def get_calorie_extremes(user_id: int):
             ORDER BY total_calories DESC
             LIMIT 1
             """,
-            (user_id,)
+            (user_id,),
         )
         max_day = cursor.fetchone()
 
@@ -497,7 +430,7 @@ def get_calorie_extremes(user_id: int):
             ORDER BY total_calories ASC
             LIMIT 1
             """,
-            (user_id,)
+            (user_id,),
         )
         min_day = cursor.fetchone()
 

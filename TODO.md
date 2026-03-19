@@ -1,7 +1,7 @@
 # Calorie Telegram Bot -- MVP TODO
 
-- add delete button after each added meal
-- meal added date should match when user sent the message (so if the bot has been offline it doesn't disrupt the log)
+- Implement /today as sending all the meal messages back again chronologically
+- Add button /today in the delete meal confirmation message
 - add export all data functionality so user can analyze it himself
 
 ## Architecture Improvement

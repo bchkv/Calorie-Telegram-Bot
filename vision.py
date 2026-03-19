@@ -14,21 +14,26 @@ from openai import AsyncOpenAI
 VISION_PROMPT_TEMPLATE = """
 Estimate the total calories and protein for the entire visible meal.
 
-First, assess the portion size:
-- small meal (~100–300 kcal)
-- medium meal (~300–700 kcal)
-- large meal (~700–1200+ kcal)
+Step 1 — Estimate portion size:
+For each major food component, estimate how much food is present:
+- very small portion
+- small portion
+- medium portion
+- large portion
 
-Then refine your estimate based on:
-- portion sizes
-- sauces, oils, dressings
-- beverages
-- desserts
-- multiple separate food items
+Step 2 — Estimate total meal size:
+Classify the whole meal:
+- small (~100–300 kcal)
+- medium (~300–700 kcal)
+- large (~700–1200+ kcal)
 
-Avoid systematic bias:
-- do not consistently overestimate or underestimate
-- the estimate should match the visible quantity of food
+Step 3 — Estimate nutrition:
+Use portion size and food type to compute total calories and protein.
+
+Important:
+- meals with clearly larger portions must result in significantly higher calories
+- avoid compressing different meals into similar calorie values
+- scale estimates based on visible quantity
 
 Additional details: {caption_text}
 

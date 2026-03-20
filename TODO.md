@@ -1,7 +1,6 @@
 # Calorie Telegram Bot -- MVP TODO
 
-- Implement /today as sending all the meal messages back again chronologically
-- Add button /today in the delete meal confirmation message
+- Add saved meals feature in the Bot
 - add export all data functionality so user can analyze it himself
 
 ## Architecture Improvement

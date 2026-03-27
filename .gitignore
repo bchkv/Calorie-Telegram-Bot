@@ -7,3 +7,4 @@ temp/
 *.log
 /benchmarks/results/benchmark_results.csv
 /benchmarks/ACETADA/summary.json
+data/

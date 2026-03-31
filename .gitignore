@@ -8,3 +8,4 @@ temp/
 /benchmarks/results/benchmark_results.csv
 /benchmarks/ACETADA/summary.json
 data/
+/benchmarks/ACETADA/acetada_benchmark_clean.csv

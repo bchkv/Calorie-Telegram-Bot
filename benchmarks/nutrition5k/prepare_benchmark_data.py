@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from benchmarks.ACETADA.prepare_benchmark_data import PROJECT_ROOT
+
 # Absolute path to the directory where this script lives.
 # Example:
 # benchmarks/Nutrition5k/
@@ -13,10 +15,10 @@ PROJECT_ROOT = SCRIPT_DIR.parent.parent
 
 # Input raw metadata CSV.
 # Change this if you want cafe2 instead of cafe1.
-INPUT_CSV = PROJECT_ROOT / "data" / "raw" / "Nutrition5k" / "metadata" / "dish_metadata_cafe1.csv"
+INPUT_CSV = PROJECT_ROOT / "data/raw/nutrition5k/nutrition5k_benchmark_dataset_builder/metadata/dish_metadata_cafe1.csv"
 
 # Output cleaned benchmark CSV.
-OUTPUT_CSV = SCRIPT_DIR / "nutrition5k_benchmark_clean.csv"
+OUTPUT_CSV = PROJECT_ROOT / "benchmarks/nutrition5k/nutrition5k_benchmark_clean.csv"
 
 
 def to_float(value: str) -> float | None:

@@ -3,14 +3,12 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from benchmarks.ACETADA.prepare_benchmark_data import PROJECT_ROOT
-
 # Absolute path to the directory where this script lives.
 # Example:
-# benchmarks/Nutrition5k/
+# benchmarks/nutrition5k/
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-# Project root, assuming the script is in benchmarks/Nutrition5k/
+# Project root, assuming the script is in benchmarks/nutrition5k/
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 
 # Input raw metadata CSV.
@@ -56,7 +54,6 @@ def parse_raw_row(row: list[str]) -> dict[str, object] | None:
         ingr_1_id, ingr_1_name, ingr_1_grams, ingr_1_calories, ingr_1_fat, ingr_1_carb, ingr_1_protein,
         ingr_2_id, ingr_2_name, ...
     """
-    # Need at least the fixed dish-level fields.
     if len(row) < 6:
         return None
 
@@ -73,26 +70,21 @@ def parse_raw_row(row: list[str]) -> dict[str, object] | None:
     ):
         return None
 
-    # Basic sanity checks.
     if total_portion_g <= 0 or groundtruth_calories < 0 or groundtruth_protein_g < 0:
         return None
 
-    # Starting from column 6, ingredient fields come in groups of 7:
-    # id, name, grams, calories, fat, carb, protein
     ingredient_names: list[str] = []
     ingredient_chunk_size = 7
 
     for i in range(6, len(row), ingredient_chunk_size):
         chunk = row[i:i + ingredient_chunk_size]
 
-        # Ignore incomplete trailing chunks.
         if len(chunk) < ingredient_chunk_size:
             continue
 
         ingr_id = chunk[0].strip()
         ingr_name = chunk[1].strip()
 
-        # If the dataset has an empty ingredient slot, skip it.
         if not ingr_id and not ingr_name:
             continue
 
@@ -103,7 +95,6 @@ def parse_raw_row(row: list[str]) -> dict[str, object] | None:
 
     return {
         "sample_id": dish_id,
-        "dish_id": dish_id,
         "total_portion_g": total_portion_g,
         "groundtruth_calories": groundtruth_calories,
         "groundtruth_protein_g": groundtruth_protein_g,
@@ -117,7 +108,6 @@ def main() -> None:
 
     Output schema:
         sample_id
-        dish_id
         total_portion_g
         groundtruth_calories
         groundtruth_protein_g
@@ -131,7 +121,6 @@ def main() -> None:
 
     fieldnames = [
         "sample_id",
-        "dish_id",
         "total_portion_g",
         "groundtruth_calories",
         "groundtruth_protein_g",
@@ -157,7 +146,6 @@ def main() -> None:
 
             cleaned_row = {
                 "sample_id": parsed["sample_id"],
-                "dish_id": parsed["dish_id"],
                 "total_portion_g": f"{parsed['total_portion_g']:.6f}".rstrip("0").rstrip("."),
                 "groundtruth_calories": f"{parsed['groundtruth_calories']:.6f}".rstrip("0").rstrip("."),
                 "groundtruth_protein_g": f"{parsed['groundtruth_protein_g']:.6f}".rstrip("0").rstrip("."),

@@ -13,12 +13,19 @@ from src.vision import estimate_meal
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 
-DATASET_ROOT = PROJECT_ROOT / "data" / "raw" / "ACETADA"
-BENCHMARK_CSV = SCRIPT_DIR / "acetada_benchmark_clean.csv"
+BENCHMARK_CSV = SCRIPT_DIR / "nutrition5k_benchmark_clean.csv"
 RESULTS_CSV = SCRIPT_DIR / "results.csv"
 SUMMARY_JSON = SCRIPT_DIR / "summary.json"
 
-# Max number of meals to process.
+# Directory with selected benchmark images.
+# Adjust if your images live somewhere else.
+IMAGE_DIR = PROJECT_ROOT / "data" / "processed" / "frames_selected"
+
+# Which frame variant to use for each dish.
+# Common choices in Nutrition5k-derived pipelines are "_B.png" or "_C.png".
+IMAGE_SUFFIX = "_B.png"
+
+# Max number of dishes to process.
 # Set to None to process all rows.
 MAX_ROWS: int | None = 3
 
@@ -80,6 +87,18 @@ def safe_extract_prediction(prediction: Any) -> tuple[str, float | None, float |
     return str(prediction).strip(), None, None
 
 
+def get_image_path(sample_id: str) -> Path:
+    """
+    Build the image path for a cleaned Nutrition5k benchmark row.
+
+    Example:
+        sample_id = "dish_1561662216"
+        IMAGE_SUFFIX = "_B.png"
+        -> .../frames_selected/dish_1561662216_B.png
+    """
+    return IMAGE_DIR / f"{sample_id}{IMAGE_SUFFIX}"
+
+
 def write_results_csv(rows: list[dict[str, Any]], path: Path) -> None:
     fieldnames = [
         "sample_id",
@@ -109,7 +128,6 @@ def write_summary_json(summary: dict[str, Any], path: Path) -> None:
 
 async def process_row(row: dict[str, str]) -> dict[str, Any]:
     sample_id = (row.get("sample_id") or "").strip()
-    before_filename = (row.get("before_filename") or "").strip()
     groundtruth_content = (row.get("groundtruth_content") or "").strip()
 
     groundtruth_calories = to_float(row.get("groundtruth_calories"))
@@ -130,16 +148,15 @@ async def process_row(row: dict[str, str]) -> dict[str, Any]:
         "status": "failed",
     }
 
-    if not sample_id or not before_filename:
+    if not sample_id:
         return result
 
-    # ACETADA stores images under participant folders, but your cleaned table
-    # only kept before_filename. So we search for that filename under DATASET_ROOT.
-    matches = list(DATASET_ROOT.rglob(before_filename))
-    if not matches:
+    if groundtruth_calories is None or groundtruth_protein_g is None:
         return result
 
-    image_path = matches[0]
+    image_path = get_image_path(sample_id)
+    if not image_path.exists():
+        return result
 
     try:
         prediction = await estimate_meal(
@@ -149,12 +166,7 @@ async def process_row(row: dict[str, str]) -> dict[str, Any]:
 
         predicted_content, predicted_calories, predicted_protein_g = safe_extract_prediction(prediction)
 
-        if (
-            groundtruth_calories is None
-            or groundtruth_protein_g is None
-            or predicted_calories is None
-            or predicted_protein_g is None
-        ):
+        if predicted_calories is None or predicted_protein_g is None:
             return result
 
         calorie_error_signed = predicted_calories - groundtruth_calories
@@ -184,6 +196,9 @@ async def process_row(row: dict[str, str]) -> dict[str, Any]:
 async def main() -> None:
     if not BENCHMARK_CSV.exists():
         raise FileNotFoundError(f"Benchmark CSV not found: {BENCHMARK_CSV}")
+
+    if not IMAGE_DIR.exists():
+        raise FileNotFoundError(f"Image directory not found: {IMAGE_DIR}")
 
     all_rows = load_benchmark_rows(BENCHMARK_CSV)
     selected_rows = select_rows(all_rows)
